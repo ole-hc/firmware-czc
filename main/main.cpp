@@ -11,6 +11,8 @@
 #include "EthernetAPI.h"
 #include "NvsAPI.h"
 #include "IoAPI.h"
+#include "CcFrameAPI.h"
+#include "CcZnpAPI.h"
 
  /*
 struct hardwareConfig {
