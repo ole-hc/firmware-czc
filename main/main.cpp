@@ -9,6 +9,7 @@
 
 #include "FilesystemAPI.h"
 #include "EthernetAPI.h"
+#include "NvsAPI.h"
 
  /*
 struct hardwareConfig {
@@ -38,6 +39,7 @@ struct hardwareConfig {
 extern "C" void app_main(){
     FilesystemAPI filesystemAPI;
     EthernetAPI ethernetAPI;
+    NvsAPI nvsApi;
 
     esp_log_level_set("*", ESP_LOG_DEBUG); 
 
@@ -48,4 +50,5 @@ extern "C" void app_main(){
     
     delete &filesystemAPI;
     delete &ethernetAPI;
+    delete &nvsApi;
 }
