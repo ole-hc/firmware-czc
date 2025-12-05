@@ -1,7 +1,8 @@
-idf_component_register(SRCS "main.cpp" "FilesystemAPI.cpp" "EthernetAPI.cpp" "NvsAPI.cpp"
+idf_component_register(SRCS "main.cpp" "FilesystemAPI.cpp" "EthernetAPI.cpp" "NvsAPI.cpp" "IoAPI.cpp"
                        PRIV_REQUIRES spi_flash
                        REQUIRES littlefs
                        REQUIRES esp_netif
                        REQUIRES esp_eth
                        REQUIRES nvs_flash
+                       REQUIRES esp_driver_gpio
                        INCLUDE_DIRS "")
