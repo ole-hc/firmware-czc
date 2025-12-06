@@ -65,15 +65,16 @@ void EthernetAPI::eth_event_handler(void *arg, esp_event_base_t event_base, int3
     }
 }
 
+// used for Wifi and Eth maybe move to Network API?!
 void EthernetAPI::got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
     const esp_netif_ip_info_t *ip_info = &event->ip_info;
 
-    ESP_LOGI(TAG, "Ethernet Got IP Address");
+    ESP_LOGI(TAG, "Got IP Address");
     ESP_LOGI(TAG, "~~~~~~~~~~~");
-    ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
-    ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
-    ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
+    ESP_LOGI(TAG, "IP:" IPSTR, IP2STR(&ip_info->ip));
+    ESP_LOGI(TAG, "MASK:" IPSTR, IP2STR(&ip_info->netmask));
+    ESP_LOGI(TAG, "GW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(TAG, "~~~~~~~~~~~");
 }

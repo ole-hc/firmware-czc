@@ -3,6 +3,7 @@
 #include "esp_mac.h"
 #include "esp_log.h"
 
+// Wifi and accesspoint not possible at the same time to prevent undefined behavior
 class WirelessAPI
 {
 private:
@@ -18,5 +19,7 @@ public:
     ~WirelessAPI();
     void initAccessPoint();
     void closeAccessPoint();
+    void initWifi();
+    void closeWifi();
 };
 
