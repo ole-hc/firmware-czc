@@ -9,11 +9,41 @@ NvsAPI::NvsAPI()
         ESP_LOGW(TAG, "Error initialising NVS (%s)", esp_err_to_name(ret));
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
-        ESP_LOGW(TAG, "Formatted und initialised Nvs (%s)", esp_err_to_name(ret));
+        ESP_LOGW(TAG, "Formatted and initialised Nvs (%s)", esp_err_to_name(ret));
     }
     ESP_ERROR_CHECK(ret); // Abort program if second init fails
 }
 
 NvsAPI::~NvsAPI()
 {
+}
+
+bool NvsAPI::saveNetworkConfigToNvs(const NetworkConfig &networkConfig)
+{
+    nvs_handle_t handle;
+    if(nvs_open(networkConfigNamespace, NVS_READWRITE, &handle) != ESP_OK) return false;
+    
+    esp_err_t ret = nvs_set_blob(handle, "config", &networkConfig, sizeof(networkConfig));
+    if(ret != ESP_OK) return false;
+
+    nvs_commit(handle);
+    nvs_close(handle);
+    return true;
+}
+
+void NvsAPI::getNetworkConfigFromNvs(NetworkConfig &networkConfig)
+{
+    nvs_handle_t handle;
+    if (nvs_open("netcfg", NVS_READONLY, &handle) != ESP_OK) ESP_LOGW(TAG, "Error while writing networkConfig to NVS");
+    
+    size_t size = sizeof(networkConfig);
+    esp_err_t ret = nvs_get_blob(handle, "config", &networkConfig, &size);
+    nvs_close(handle);
+
+    if(ret == ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGI(TAG, "Networkconfig not saved until now, using default!");
+        networkConfig.wifiConfigured = false;
+    }
+
+    if(ret != ESP_OK && ret != ESP_ERR_NVS_NOT_FOUND) ESP_LOGW(TAG, "Error while reading networkConfig from Nvs");
 }

@@ -27,9 +27,12 @@ private:
     static const char* TAG;
     esp_eth_handle_t eth_handle = NULL;
 
+    bool ethIsConnected = false;
+
     static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
-    static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 public:
     EthernetAPI();
     ~EthernetAPI();
+    void setEthIsConnected(bool _ethIsConnected);
+    bool getEthIsConnected();
 };
