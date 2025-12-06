@@ -21,11 +21,10 @@ EthernetAPI::EthernetAPI()
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy); 
     esp_eth_driver_install(&config, &eth_handle); 
 
-    esp_event_loop_create_default(); 
     esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler, NULL);
 
     // ip stack config
-    esp_netif_init(); 
+    ESP_ERROR_CHECK(esp_netif_init()); 
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH(); 
     esp_netif_t *eth_netif = esp_netif_new(&cfg); 
 
@@ -36,6 +35,7 @@ EthernetAPI::EthernetAPI()
 
 EthernetAPI::~EthernetAPI()
 {
+    esp_event_handler_unregister(IP_EVENT, IP_EVENT_ETH_GOT_IP, &EthernetAPI::got_ip_event_handler);
     esp_eth_stop(eth_handle);
 }
 

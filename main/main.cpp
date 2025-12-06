@@ -13,6 +13,8 @@
 #include "IoAPI.h"
 #include "CcFrameAPI.h"
 #include "CcZnpAPI.h"
+#include "WirelessAPI.h"
+#include "NetworkAPI.h"
 
  /*
 struct hardwareConfig {
@@ -24,10 +26,13 @@ struct hardwareConfig {
 */
 
 extern "C" void app_main(){
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
     FilesystemAPI filesystemAPI;
     EthernetAPI ethernetAPI;
     NvsAPI nvsAPI;
     IoAPI ioAPI;
+    WirelessAPI wirelessAPI("ESP_AP", "12345678", 1);
+    wirelessAPI.initAccessPoint();
 
     esp_log_level_set("*", ESP_LOG_DEBUG); 
 
@@ -43,4 +48,6 @@ extern "C" void app_main(){
     delete &ethernetAPI;
     delete &nvsAPI;
     delete &ioAPI;
+    wirelessAPI.closeAccessPoint();
+    delete &wirelessAPI;
 }
