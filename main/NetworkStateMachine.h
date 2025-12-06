@@ -17,15 +17,15 @@ class NetworkStateMachine
 private:
     static const char* TAG;
     NetworkState currentState = NetworkState::INIT;
-    EthernetAPI ethernetAPI;
-    WirelessAPI wirelessAPI;
-    NvsAPI nvsAPI;
+    EthernetAPI& ethernetAPI;
+    WirelessAPI& wirelessAPI;
+    NvsAPI& nvsAPI;
     
     NetworkConfig networkConfig;
 
     static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 public:
-    NetworkStateMachine(NvsAPI& _nvsAPI);
+    NetworkStateMachine(EthernetAPI& _ethernetAPI, WirelessAPI& _wirelessAPI, NvsAPI& _nvsAPI);
     ~NetworkStateMachine();
     void runNetworkStateMachine();
 };

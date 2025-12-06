@@ -2,13 +2,11 @@
 
 const char* NetworkStateMachine::TAG = "network-state-machine";
 
-NetworkStateMachine::NetworkStateMachine(NvsAPI& _nvsAPI)
-{ 
-    ESP_LOGW(TAG, "Constructor");
-    ethernetAPI = EthernetAPI();
-    wirelessAPI = WirelessAPI();
+NetworkStateMachine::NetworkStateMachine(EthernetAPI& _ethernetAPI, WirelessAPI& _wirelessAPI, NvsAPI& _nvsAPI) 
+    : ethernetAPI(_ethernetAPI), wirelessAPI(_wirelessAPI), nvsAPI(_nvsAPI)
+{   
+    ESP_ERROR_CHECK(esp_netif_init());
 
-    this->nvsAPI = _nvsAPI;
     nvsAPI.getNetworkConfigFromNvs(networkConfig);
     if(networkConfig.wifiConfigured) {
         wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password, 2); // if wifi was previously configure, configure accordingly and start wifi 

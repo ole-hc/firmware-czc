@@ -19,9 +19,9 @@ EthernetAPI::EthernetAPI()
 
     // eth driver config
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy); 
-    esp_eth_driver_install(&config, &eth_handle); 
+    ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle)); 
 
-    esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler, NULL);
+    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler, NULL));
 
     // ip stack config
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH(); 
