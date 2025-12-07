@@ -1,30 +1,43 @@
 #include "NetworkStateMachine.h"
 
 const char* NetworkStateMachine::TAG = "network-state-machine";
+ESP_EVENT_DEFINE_BASE(NETWORK_EVENT);
 
 NetworkStateMachine::NetworkStateMachine(EthernetAPI& _ethernetAPI, WirelessAPI& _wirelessAPI, NvsAPI& _nvsAPI) 
-    : ethernetAPI(_ethernetAPI), wirelessAPI(_wirelessAPI), nvsAPI(_nvsAPI)
+    : currentState(NetworkState::INIT), ethernetAPI(_ethernetAPI), wirelessAPI(_wirelessAPI), nvsAPI(_nvsAPI), networkConfigChanged(false)
 {   
-    ESP_ERROR_CHECK(esp_netif_init());
-
-    nvsAPI.getNetworkConfigFromNvs(networkConfig);
-    if(networkConfig.wifiConfigured) {
-        wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password, 2); // if wifi was previously configure, configure accordingly and start wifi 
-        wirelessAPI.initWifi();
-    }
-
-    this->currentState = NetworkState::INIT;
-    esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &NetworkStateMachine::got_ip_event_handler, this); // Ip handler for Ethernet and Wireless
+    nvsAPI.getNetworkConfigFromNvs(networkConfig); // Test and fix bugs !!!!!!!!!!!!!
 }
 
 NetworkStateMachine::~NetworkStateMachine()
 {
-    esp_event_handler_unregister(IP_EVENT, IP_EVENT_ETH_GOT_IP, &NetworkStateMachine::got_ip_event_handler);
-    // netif delete i dont think its needed
+}
+
+void NetworkStateMachine::initNetworkStateMachine()
+{
+    ethernetAPI.initEthernet();
+    ESP_ERROR_CHECK(esp_netif_init());
+    if(networkConfig.wifiConfigured) {
+        wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password, 2); // if wifi was previously configured, configure accordingly and start wifi 
+        wirelessAPI.initWifi();
+    }
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::got_ip_event_handler, this)); // Ip handler for Ethernet and Wireless
+    ESP_ERROR_CHECK(esp_event_handler_register(NETWORK_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::network_event_handler, this));
+}
+
+void NetworkStateMachine::closeNetworkStateMachine()
+{
+    ethernetAPI.closeEthernet();
+    ActiveWirelessMode wirelessMode = wirelessAPI.getActiveWirelessMode();
+    if(wirelessMode == ActiveWirelessMode::WIFI) wirelessAPI.closeWifi();
+    else if(wirelessMode == ActiveWirelessMode::ACCESSPOINT) wirelessAPI.closeAccessPoint();
+    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::got_ip_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(NETWORK_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::network_event_handler));
 }
 
 void NetworkStateMachine::runNetworkStateMachine()
 {
+    // implement with eventstream or similar not polling -> cleaner and faster 
     switch (currentState)
     {
         case NetworkState::INIT:
@@ -36,6 +49,11 @@ void NetworkStateMachine::runNetworkStateMachine()
             }
             else {
                 // maybe retries or smn
+                if(wirelessAPI.getActiveWirelessMode() != ActiveWirelessMode::WIFI) {
+                    wirelessAPI.setWirelessConfig("czc-codm", "codm", 2); 
+                    wirelessAPI.initAccessPoint();
+                    networkConfig.wifiConfigured = false;
+                }
                 currentState = NetworkState::ACCESS_POINT;
             }
             break;
@@ -57,24 +75,19 @@ void NetworkStateMachine::runNetworkStateMachine()
             break;
 
         case NetworkState::ACCESS_POINT:
+            if(networkConfigChanged == true) {
                 nvsAPI.getNetworkConfigFromNvs(networkConfig);
-                if(wirelessAPI.getActiveWirelessMode() != ActiveWirelessMode::WIFI) {
-                    wirelessAPI.setWirelessConfig("czc-codm", "codm", 2); 
-                    wirelessAPI.initAccessPoint();
-                    networkConfig.wifiConfigured = false;
-                }
-                else if(ethernetAPI.getEthIsConnected()) {
+                if(wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::ACCESSPOINT) {
                     wirelessAPI.closeAccessPoint();
-                    currentState = NetworkState::ETHERNET;
                 }
-                else if (networkConfig.wifiConfigured == true) {
-                    if(wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::ACCESSPOINT) {
-                        wirelessAPI.closeAccessPoint();
-                    }
-                    wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password, 2);
-                    wirelessAPI.initWifi();
-                    currentState = NetworkState::WLAN;
-                }
+                wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password, 2);
+                wirelessAPI.initWifi();
+                currentState = NetworkState::WLAN;
+            }
+            else if(ethernetAPI.getEthIsConnected()) {
+                wirelessAPI.closeAccessPoint();
+                currentState = NetworkState::ETHERNET;
+            }    
             break;
 
         default:
@@ -95,7 +108,6 @@ void NetworkStateMachine::got_ip_event_handler(void *arg, esp_event_base_t event
         }
         
         case IP_EVENT_STA_LOST_IP: {
-            auto* event = (ip_event_got_ip_t*) event_data;
             ESP_LOGI(TAG, "Wifi lost IP!");
             self->wirelessAPI.setWifiIsConnected(false);
             break;
@@ -109,9 +121,20 @@ void NetworkStateMachine::got_ip_event_handler(void *arg, esp_event_base_t event
         }
 
         case IP_EVENT_ETH_LOST_IP: {
-            auto* event = (ip_event_got_ip_t*) event_data;
             ESP_LOGI(TAG, "Ethernet lost IP!");
             self->ethernetAPI.setEthIsConnected(false);
+            break;
+        }
+    }
+}
+
+void NetworkStateMachine::network_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    auto* self = static_cast<NetworkStateMachine*>(arg);
+    switch (event_id) {
+        case NETWORK_EVENT_CONFIG_UPDATED: {
+            ESP_LOGI(TAG, "Wifi config changed!");
+            self->networkConfigChanged = true;
             break;
         }
     }

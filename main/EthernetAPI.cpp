@@ -3,6 +3,15 @@
 const char* EthernetAPI::TAG = "ethernet"; 
 
 EthernetAPI::EthernetAPI()
+    : ethConfig(), eth_handle(NULL), ethIsConnected(false)
+{
+}
+
+EthernetAPI::~EthernetAPI()
+{
+}
+
+void EthernetAPI::initEthernet()
 {
     // mac config
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();    
@@ -31,7 +40,7 @@ EthernetAPI::EthernetAPI()
     esp_eth_start(eth_handle); 
 }
 
-EthernetAPI::~EthernetAPI()
+void EthernetAPI::closeEthernet()
 {
     esp_event_handler_unregister(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler);
     esp_eth_stop(eth_handle);

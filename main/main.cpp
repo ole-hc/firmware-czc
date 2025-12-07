@@ -31,6 +31,8 @@ extern "C" void app_main(){
     EthernetAPI ethernetAPI;
     WirelessAPI wirelessAPI;
     NetworkStateMachine networkStateMachine(ethernetAPI, wirelessAPI, nvsAPI);
+    nvsAPI.initNvs();
+    networkStateMachine.initNetworkStateMachine();
 
     esp_log_level_set("*", ESP_LOG_DEBUG); 
 
@@ -41,4 +43,15 @@ extern "C" void app_main(){
     {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
+
+    nvsAPI.closeNvs();
+    networkStateMachine.closeNetworkStateMachine();
 }
+
+// Todo: NetworkStateMachine 
+//      -> Nvs bug
+//      -> event based / no more polling !(Especially with the Accesspoint nvs-config polling)
+//      
+// Next step:
+// task for NetworkStateMachine
+// Http server when Connection logic runs 

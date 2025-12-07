@@ -3,7 +3,7 @@
 #include "EthernetAPI.h"
 #include "WirelessAPI.h"
 #include "NvsAPI.h"
-#include "configStructs.h"
+#include "network_event.h"
 
 enum class NetworkState {
     INIT,
@@ -16,16 +16,20 @@ class NetworkStateMachine
 {
 private:
     static const char* TAG;
-    NetworkState currentState = NetworkState::INIT;
+    NetworkState currentState;
     EthernetAPI& ethernetAPI;
     WirelessAPI& wirelessAPI;
     NvsAPI& nvsAPI;
     
     NetworkConfig networkConfig;
+    bool networkConfigChanged;
 
     static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+    static void network_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 public:
     NetworkStateMachine(EthernetAPI& _ethernetAPI, WirelessAPI& _wirelessAPI, NvsAPI& _nvsAPI);
     ~NetworkStateMachine();
+    void initNetworkStateMachine();
+    void closeNetworkStateMachine();
     void runNetworkStateMachine();
 };
