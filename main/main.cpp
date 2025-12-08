@@ -50,8 +50,8 @@ extern "C" void app_main(){
 
 // Todo: NetworkStateMachine 
 //      -> Nvs bug
-//      -> event based / no more polling !(Especially with the Accesspoint nvs-config polling)
+//      -> NetworkstateMachine event based / no more polling !(Especially with the Accesspoint nvs-config polling)
+//      -> Better way to init Accesspoint after wifi (other way around) --> without config change --> extra config variable?
 //      
 // Next step:
-// task for NetworkStateMachine
 // Http server when Connection logic runs 

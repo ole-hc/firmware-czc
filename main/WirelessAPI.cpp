@@ -3,19 +3,13 @@
 const char* WirelessAPI::TAG = "wireless";
 
 WirelessAPI::WirelessAPI(char* _ssid, char* _password, uint8_t _maxConnected)
+    : ssid(_ssid), password(_password), maxConnected(2), activeWirelessMode(ActiveWirelessMode::OFF), wifiIsConnected(false)
 {
-    this->ssid = _ssid;
-    this->password = _password;
-    this->maxConnected = _maxConnected;
-    activeWirelessMode = ActiveWirelessMode::OFF;
 }
 
 WirelessAPI::WirelessAPI()
+    : ssid("czc-codm"), password("codmcodm"), maxConnected(2), activeWirelessMode(ActiveWirelessMode::OFF), wifiIsConnected(false)
 {
-    this->ssid = "czc-codm";
-    this->password = "codm";
-    this->maxConnected = 2;
-    activeWirelessMode = ActiveWirelessMode::OFF;
 }
 
 WirelessAPI::~WirelessAPI()

@@ -4,7 +4,7 @@ const char* NetworkStateMachine::TAG = "network-state-machine";
 ESP_EVENT_DEFINE_BASE(NETWORK_EVENT);
 
 NetworkStateMachine::NetworkStateMachine(EthernetAPI& _ethernetAPI, WirelessAPI& _wirelessAPI, NvsAPI& _nvsAPI) 
-    : currentState(NetworkState::INIT), ethernetAPI(_ethernetAPI), wirelessAPI(_wirelessAPI), nvsAPI(_nvsAPI), networkConfigChanged(false)
+    : currentState(NetworkState::INIT), ethernetAPI(_ethernetAPI), wirelessAPI(_wirelessAPI), nvsAPI(_nvsAPI), networkConfigChanged(false), nsmHandle(NULL)
 {   
     nvsAPI.getNetworkConfigFromNvs(networkConfig); // Test and fix bugs !!!!!!!!!!!!!
 }
@@ -23,10 +23,16 @@ void NetworkStateMachine::initNetworkStateMachine()
     }
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::got_ip_event_handler, this)); // Ip handler for Ethernet and Wireless
     ESP_ERROR_CHECK(esp_event_handler_register(NETWORK_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::network_event_handler, this));
+    
+    xTaskCreate(taskLoopNetworkStateMachine, "NSM_Task", 4096, this, 5, &nsmHandle);
 }
 
 void NetworkStateMachine::closeNetworkStateMachine()
 {
+    if(nsmHandle != NULL) {
+        vTaskDelete(nsmHandle);
+    }
+
     ethernetAPI.closeEthernet();
     ActiveWirelessMode wirelessMode = wirelessAPI.getActiveWirelessMode();
     if(wirelessMode == ActiveWirelessMode::WIFI) wirelessAPI.closeWifi();
@@ -41,6 +47,7 @@ void NetworkStateMachine::runNetworkStateMachine()
     switch (currentState)
     {
         case NetworkState::INIT:
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Give Eth and wifi time to connect before potentially starting the accesspoint
             if(ethernetAPI.getEthIsConnected()) {
                 currentState = NetworkState::ETHERNET;
             } 
@@ -49,11 +56,13 @@ void NetworkStateMachine::runNetworkStateMachine()
             }
             else {
                 // maybe retries or smn
-                if(wirelessAPI.getActiveWirelessMode() != ActiveWirelessMode::WIFI) {
-                    wirelessAPI.setWirelessConfig("czc-codm", "codm", 2); 
-                    wirelessAPI.initAccessPoint();
-                    networkConfig.wifiConfigured = false;
+                if(wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::WIFI) {
+                    wirelessAPI.closeWifi();
                 }
+                ESP_LOGW(TAG, "Starting Access point!!!");
+                wirelessAPI.setWirelessConfig("czc-codm", "codmcodm", 2); 
+                wirelessAPI.initAccessPoint();
+                networkConfig.wifiConfigured = false;
                 currentState = NetworkState::ACCESS_POINT;
             }
             break;
@@ -93,6 +102,35 @@ void NetworkStateMachine::runNetworkStateMachine()
         default:
             break;
     }
+}
+
+void NetworkStateMachine::taskLoopNetworkStateMachine(void* pvParameters) {
+    auto* self = static_cast<NetworkStateMachine*>(pvParameters);
+    while (true)
+    {
+        self->runNetworkStateMachine();
+        vTaskDelay(pdMS_TO_TICKS(100)); // give room for other tasks 
+        ESP_LOGW(TAG, "Current NetworkStateMachine state: ");
+        switch (self->currentState)
+        {
+        case NetworkState::INIT:
+            ESP_LOGW(TAG, "INIT");
+            break;
+        
+        case NetworkState::WLAN:
+            ESP_LOGW(TAG, "WLAN");
+            break;
+
+        case NetworkState::ETHERNET:
+            ESP_LOGW(TAG, "ETHERNET");
+            break;
+
+        case NetworkState::ACCESS_POINT:
+            ESP_LOGW(TAG, "ACCESS POINT");
+            break;
+        }
+    }
+    
 }
 
 void NetworkStateMachine::got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
