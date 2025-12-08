@@ -13,6 +13,7 @@
 #include "CcFrameAPI.h"
 #include "CcZnpAPI.h"
 #include "NetworkStateMachine.h"
+#include "HttpServer.h"
 
  /*
 struct hardwareConfig {
