@@ -8,13 +8,11 @@
 #include "esp_mac.h"
 
 #include "FilesystemAPI.h"
-#include "EthernetAPI.h"
 #include "NvsAPI.h"
 #include "IoAPI.h"
 #include "CcFrameAPI.h"
 #include "CcZnpAPI.h"
-#include "WirelessAPI.h"
-#include "NetworkAPI.h"
+#include "NetworkStateMachine.h"
 
  /*
 struct hardwareConfig {
@@ -28,11 +26,13 @@ struct hardwareConfig {
 extern "C" void app_main(){
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     FilesystemAPI filesystemAPI;
-    EthernetAPI ethernetAPI;
     NvsAPI nvsAPI;
     IoAPI ioAPI;
-    WirelessAPI wirelessAPI("ESP_AP", "12345678", 1);
-    wirelessAPI.initAccessPoint();
+    EthernetAPI ethernetAPI;
+    WirelessAPI wirelessAPI;
+    NetworkStateMachine networkStateMachine(ethernetAPI, wirelessAPI, nvsAPI);
+    nvsAPI.initNvs();
+    networkStateMachine.initNetworkStateMachine();
 
     esp_log_level_set("*", ESP_LOG_DEBUG); 
 
@@ -43,11 +43,15 @@ extern "C" void app_main(){
     {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-    
-    delete &filesystemAPI;
-    delete &ethernetAPI;
-    delete &nvsAPI;
-    delete &ioAPI;
-    wirelessAPI.closeAccessPoint();
-    delete &wirelessAPI;
+
+    nvsAPI.closeNvs();
+    networkStateMachine.closeNetworkStateMachine();
 }
+
+// Todo: NetworkStateMachine 
+//      -> Nvs bug
+//      -> NetworkstateMachine event based / no more polling !(Especially with the Accesspoint nvs-config polling)
+//      -> Better way to init Accesspoint after wifi (other way around) --> without config change --> extra config variable?
+//      
+// Next step:
+// Http server when Connection logic runs 

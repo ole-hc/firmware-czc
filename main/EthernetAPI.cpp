@@ -3,6 +3,15 @@
 const char* EthernetAPI::TAG = "ethernet"; 
 
 EthernetAPI::EthernetAPI()
+    : ethConfig(), eth_handle(NULL), ethIsConnected(false)
+{
+}
+
+EthernetAPI::~EthernetAPI()
+{
+}
+
+void EthernetAPI::initEthernet()
 {
     // mac config
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();    
@@ -19,24 +28,32 @@ EthernetAPI::EthernetAPI()
 
     // eth driver config
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy); 
-    esp_eth_driver_install(&config, &eth_handle); 
+    ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle)); 
 
-    esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler, NULL);
+    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler, NULL));
 
     // ip stack config
-    ESP_ERROR_CHECK(esp_netif_init()); 
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH(); 
     esp_netif_t *eth_netif = esp_netif_new(&cfg); 
 
     esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handle)); 
-    esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &EthernetAPI::got_ip_event_handler, NULL); 
     esp_eth_start(eth_handle); 
 }
 
-EthernetAPI::~EthernetAPI()
+void EthernetAPI::closeEthernet()
 {
-    esp_event_handler_unregister(IP_EVENT, IP_EVENT_ETH_GOT_IP, &EthernetAPI::got_ip_event_handler);
+    esp_event_handler_unregister(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler);
     esp_eth_stop(eth_handle);
+}
+
+void EthernetAPI::setEthIsConnected(bool _ethIsConnected)
+{
+    this->ethIsConnected = _ethIsConnected;
+}
+
+bool EthernetAPI::getEthIsConnected()
+{
+    return this->ethIsConnected;
 }
 
 void EthernetAPI::eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
@@ -63,18 +80,4 @@ void EthernetAPI::eth_event_handler(void *arg, esp_event_base_t event_base, int3
     default:
         break;
     }
-}
-
-// used for Wifi and Eth maybe move to Network API?!
-void EthernetAPI::got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
-{
-    ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
-    const esp_netif_ip_info_t *ip_info = &event->ip_info;
-
-    ESP_LOGI(TAG, "Got IP Address");
-    ESP_LOGI(TAG, "~~~~~~~~~~~");
-    ESP_LOGI(TAG, "IP:" IPSTR, IP2STR(&ip_info->ip));
-    ESP_LOGI(TAG, "MASK:" IPSTR, IP2STR(&ip_info->netmask));
-    ESP_LOGI(TAG, "GW:" IPSTR, IP2STR(&ip_info->gw));
-    ESP_LOGI(TAG, "~~~~~~~~~~~");
 }
