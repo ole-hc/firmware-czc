@@ -32,10 +32,13 @@ extern "C" void app_main(){
     EthernetAPI ethernetAPI;
     WirelessAPI wirelessAPI("czc-codm", "codmcodm", 2);
     NetworkStateMachine networkStateMachine(ethernetAPI, wirelessAPI, nvsAPI);
+    HttpServer httpServer;
+
     nvsAPI.initNvs();
     networkStateMachine.initNetworkStateMachine();
+    httpServer.startHttpServer();
 
-    esp_log_level_set("*", ESP_LOG_DEBUG); 
+    esp_log_level_set("*", ESP_LOG_INFO); 
 
     ioAPI.powerLedHigh();
     ioAPI.modeLedHigh();
@@ -51,8 +54,7 @@ extern "C" void app_main(){
 
 // Todo: NetworkStateMachine 
 //      -> Nvs bug
-//      -> NetworkstateMachine event based / no more polling !(Especially with the Accesspoint nvs-config polling)
-//      -> Better way to init Accesspoint after wifi (other way around) --> without config change --> extra config variable?
+//      -> save in nvs if there was previously a connection to the ethernet or wifi -> dont open AP
 //      
 // Next step:
-// Http server when Connection logic runs 
+// Http server

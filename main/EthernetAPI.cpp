@@ -13,6 +13,11 @@ EthernetAPI::~EthernetAPI()
 
 void EthernetAPI::initEthernet()
 {
+    if(eth_handle != nullptr) {
+        ESP_LOGW(TAG, "Ethernet was allready initialised!");
+        return;
+    }
+    
     // mac config
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();    
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG(); 
@@ -44,6 +49,7 @@ void EthernetAPI::closeEthernet()
 {
     esp_event_handler_unregister(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler);
     esp_eth_stop(eth_handle);
+    esp_eth_driver_uninstall(eth_handle); 
 }
 
 void EthernetAPI::setEthIsConnected(bool _ethIsConnected)

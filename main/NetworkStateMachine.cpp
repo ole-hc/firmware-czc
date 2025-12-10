@@ -76,7 +76,7 @@ void NetworkStateMachine::retryTimerCallback(void *args)
 // If wifi loses connection start the retry timer and if it finishes without a reestablished connection switch to ethernet
 // This is implemented for ethernet and wifi
 // When the wifi config is changed the accesspoint and wifi shut down, the config is saved and wifi starts again
-// Note: When your wifi config is wrong from the AP you are cooked
+// Note: When you configure your wifi in the Accesspoint and your credentials are wrong you are cooked
 void NetworkStateMachine::network_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     auto* self = static_cast<NetworkStateMachine*>(arg);
@@ -88,26 +88,28 @@ void NetworkStateMachine::network_event_handler(void *arg, esp_event_base_t even
                 ESP_LOGI(TAG, "Wifi got IP"); 
                 if(self->ethernetAPI.getEthIsConnected() == false) {
                     self->setState(NetworkState::WLAN);
-                    ESP_LOGI(TAG, "Wifi got IP -> changing mode to Wifi");
+                    ESP_LOGI(TAG, "Wifi got IP -> changed mode to Wifi");
                 }
                 break;
 
             case IP_EVENT_ETH_GOT_IP:
-                self->setState(NetworkState::ETHERNET);
                 self->ethernetAPI.setEthIsConnected(true);
-                ESP_LOGI(TAG, "Ethernet got IP -> changing mode to Ethernet");
+                self->setState(NetworkState::ETHERNET);
+                ESP_LOGI(TAG, "Ethernet got IP -> changed mode to Ethernet");
                 break;
 
             case IP_EVENT_STA_LOST_IP:
+                self->wirelessAPI.setWifiIsConnected(false);
                 self->setState(NetworkState::ETHERNET);
-                ESP_LOGI(TAG, "Wifi lost IP -> changing mode to Ethernet");
+                ESP_LOGI(TAG, "Wifi lost IP -> changed mode to Ethernet");
                 break;
 
             case IP_EVENT_ETH_LOST_IP:
                 ESP_LOGI(TAG, "Ethernet lost IP");
                 if(self->networkConfig.wifiConfigured) {
+                    self->ethernetAPI.setEthIsConnected(false);
                     self->setState(NetworkState::WLAN);
-                    ESP_LOGI(TAG, "Ethernet lost IP -> changing mode to Wifi");
+                    ESP_LOGI(TAG, "Ethernet lost IP -> changed mode to Wifi");
                 } 
                 break;
         }
@@ -165,13 +167,13 @@ void NetworkStateMachine::setState(NetworkState newState)
     // state init
     switch (currentState) {
         case NetworkState::ACCESS_POINT:
-            wirelessAPI.initAccessPoint();
+            if(!this->wirelessAPI.getWifiIsConnected() == false) wirelessAPI.initAccessPoint(); // evade double init at first initialisation 
             break;
         case NetworkState::WLAN:
             wirelessAPI.initWifi();
             break;
         case NetworkState::ETHERNET:
-            ethernetAPI.initEthernet();
+            if(this->ethernetAPI.getEthIsConnected() == false) ethernetAPI.initEthernet();
             break;
         case NetworkState::RETRY_ETHERNET: 
             ESP_ERROR_CHECK(esp_timer_start_once(retryTimer, 250000)); 

@@ -21,6 +21,7 @@ void HttpServer::startHttpServer()
 {
     ESP_ERROR_CHECK(httpd_start(&httpServer, &httpConfig));
     esp_err_t httpd_register_uri_handler(httpd_handle_t server, const httpd_uri_t *index_uri);
+    ESP_LOGI(TAG, "Http server started!");
 }
 
 void HttpServer::closeHttpServer()
