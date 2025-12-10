@@ -9,7 +9,7 @@ private:
     static const char* TAG;
     httpd_config_t httpConfig;
     httpd_handle_t httpServer;
-    httpd_uri_t index_uri;
+    httpd_uri_t indexUri;
 public:
     HttpServer();
     ~HttpServer();

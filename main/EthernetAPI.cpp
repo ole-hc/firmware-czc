@@ -3,7 +3,7 @@
 const char* EthernetAPI::TAG = "ethernet"; 
 
 EthernetAPI::EthernetAPI()
-    : ethConfig(), eth_handle(NULL), ethIsConnected(false)
+    : ethConfig(), eth_handle(NULL), ethIsInitialised(false), ethIsConnected(false)
 {
 }
 
@@ -43,6 +43,7 @@ void EthernetAPI::initEthernet()
 
     esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handle)); 
     esp_eth_start(eth_handle); 
+    ethIsInitialised = true;
 }
 
 void EthernetAPI::closeEthernet()
@@ -50,6 +51,12 @@ void EthernetAPI::closeEthernet()
     esp_event_handler_unregister(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetAPI::eth_event_handler);
     esp_eth_stop(eth_handle);
     esp_eth_driver_uninstall(eth_handle); 
+    ethIsInitialised = false;
+}
+
+bool EthernetAPI::getEthIsInitialised()
+{
+    return this->ethIsInitialised;
 }
 
 void EthernetAPI::setEthIsConnected(bool _ethIsConnected)

@@ -18,6 +18,7 @@ private:
     ethernetConfig ethConfig;
     esp_eth_handle_t eth_handle;
 
+    bool ethIsInitialised;
     bool ethIsConnected;
 
     static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
@@ -26,6 +27,7 @@ public:
     ~EthernetAPI();
     void initEthernet();
     void closeEthernet();
+    bool getEthIsInitialised();
     void setEthIsConnected(bool _ethIsConnected);
     bool getEthIsConnected();
 };

@@ -50,11 +50,14 @@ extern "C" void app_main(){
 
     nvsAPI.closeNvs();
     networkStateMachine.closeNetworkStateMachine();
+    httpServer.closeHttpServer();
 }
 
 // Todo: NetworkStateMachine 
 //      -> Nvs bug
 //      -> save in nvs if there was previously a connection to the ethernet or wifi -> dont open AP
+//      -> test network state machine behavior -> add way to config wifi -> test reconnection loop with eth and wifi every 5 seconds
+//      -> add ethernet on / off (init or only object created) for better querys in state machine -> cant get information if ethernet is initialised but not connected 
 //      
 // Next step:
 // Http server

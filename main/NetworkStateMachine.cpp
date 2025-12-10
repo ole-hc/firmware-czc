@@ -74,8 +74,8 @@ void NetworkStateMachine::retryTimerCallback(void *args)
 // Behavior: Wifi is started when there is a config in the nvs, eth is started all the time
 // After 5s if neither ethernet nor wifi is connected start the accesspoint
 // If wifi loses connection start the retry timer and if it finishes without a reestablished connection switch to ethernet
-// This is implemented for ethernet and wifi
-// When the wifi config is changed the accesspoint and wifi shut down, the config is saved and wifi starts again
+// This is implemented for ethernet -> wifi and wifi -> ethernet 
+// When the wifi config is changed the accesspoint, wifi and ethernet shuts down, the config is saved and wifi starts again. 
 // Note: When you configure your wifi in the Accesspoint and your credentials are wrong you are cooked
 void NetworkStateMachine::network_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
@@ -120,6 +120,7 @@ void NetworkStateMachine::network_event_handler(void *arg, esp_event_base_t even
                 ESP_LOGI(TAG, "Wifi config changed -> changing mode to Wifi");
                 if(self->wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::WIFI) self->wirelessAPI.closeWifi();
                 else if(self->wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::ACCESSPOINT) self->wirelessAPI.closeAccessPoint();
+                else if(self->ethernetAPI.getEthIsInitialised()) self->ethernetAPI.closeEthernet();
                 self->nvsAPI.getNetworkConfigFromNvs(self->networkConfig);
                 self->wirelessAPI.setWirelessConfig(self->networkConfig.ssid, self->networkConfig.password);
                 self->setState(NetworkState::WLAN);
@@ -144,13 +145,13 @@ void NetworkStateMachine::setState(NetworkState newState)
     // state exit 
     switch (currentState) {
         case NetworkState::ACCESS_POINT:
-            wirelessAPI.closeAccessPoint();
+            if(this->wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::ACCESSPOINT) wirelessAPI.closeAccessPoint();
             break;
         case NetworkState::WLAN:
-            wirelessAPI.closeWifi();
+            if(this->wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::WIFI) wirelessAPI.closeWifi();
             break;
         case NetworkState::ETHERNET:
-            ethernetAPI.closeEthernet();
+            if(this->ethernetAPI.getEthIsInitialised()) ethernetAPI.closeEthernet();
             break;
         case NetworkState::RETRY_ETHERNET: 
             ESP_ERROR_CHECK(esp_timer_start_once(retryTimer, 250000));
@@ -167,13 +168,13 @@ void NetworkStateMachine::setState(NetworkState newState)
     // state init
     switch (currentState) {
         case NetworkState::ACCESS_POINT:
-            if(!this->wirelessAPI.getWifiIsConnected() == false) wirelessAPI.initAccessPoint(); // evade double init at first initialisation 
+            if(this->wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::OFF) wirelessAPI.initAccessPoint(); // evade double init at first initialisation 
             break;
         case NetworkState::WLAN:
-            wirelessAPI.initWifi();
+            if(this->wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::OFF) wirelessAPI.initWifi();
             break;
         case NetworkState::ETHERNET:
-            if(this->ethernetAPI.getEthIsConnected() == false) ethernetAPI.initEthernet();
+            if(this->ethernetAPI.getEthIsInitialised() == false) ethernetAPI.initEthernet();
             break;
         case NetworkState::RETRY_ETHERNET: 
             ESP_ERROR_CHECK(esp_timer_start_once(retryTimer, 250000)); 
