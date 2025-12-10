@@ -16,7 +16,10 @@ private:
     static const char* TAG;
     char* ssid;
     char* password;
-    uint8_t maxConnected;
+
+    char* accessPointSsid;
+    char* accessPointPassword;
+    uint8_t accessPointMaxConnected;
 
     ActiveWirelessMode activeWirelessMode; 
     bool wifiIsConnected = false;
@@ -24,10 +27,9 @@ private:
     static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
     static void ap_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 public:
-    WirelessAPI(char* _ssid, char* _password, uint8_t _maxConnected);
-    WirelessAPI();
+    WirelessAPI(char *_accessPointSsid, char *_accessPointPassword, uint8_t _accessPointMaxConnected);
     ~WirelessAPI();
-    void setWirelessConfig(char* _ssid, char* _password, uint8_t _maxConnected);
+    void setWirelessConfig(char* _ssid, char* _password);
     void initAccessPoint();
     void closeAccessPoint();
     void initWifi();

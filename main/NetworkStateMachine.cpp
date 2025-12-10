@@ -4,7 +4,7 @@ const char* NetworkStateMachine::TAG = "network-state-machine";
 ESP_EVENT_DEFINE_BASE(NETWORK_EVENT);
 
 NetworkStateMachine::NetworkStateMachine(EthernetAPI& _ethernetAPI, WirelessAPI& _wirelessAPI, NvsAPI& _nvsAPI) 
-    : currentState(NetworkState::INIT), ethernetAPI(_ethernetAPI), wirelessAPI(_wirelessAPI), nvsAPI(_nvsAPI), networkConfigChanged(false), nsmHandle(NULL)
+    : currentState(NetworkState::INIT), ethernetAPI(_ethernetAPI), wirelessAPI(_wirelessAPI), nvsAPI(_nvsAPI), initTimer(NULL), retryTimer(NULL)
 {   
     nvsAPI.getNetworkConfigFromNvs(networkConfig); // Test and fix bugs !!!!!!!!!!!!!
 }
@@ -18,162 +18,168 @@ void NetworkStateMachine::initNetworkStateMachine()
     ethernetAPI.initEthernet();
     ESP_ERROR_CHECK(esp_netif_init());
     if(networkConfig.wifiConfigured) {
-        wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password, 2); // if wifi was previously configured, configure accordingly and start wifi 
+        wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password); // if wifi was previously configured, configure accordingly and start wifi 
         wirelessAPI.initWifi();
     }
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::got_ip_event_handler, this)); // Ip handler for Ethernet and Wireless
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::network_event_handler, this)); // Ip handler for Ethernet and Wireless
     ESP_ERROR_CHECK(esp_event_handler_register(NETWORK_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::network_event_handler, this));
-    
-    xTaskCreate(taskLoopNetworkStateMachine, "NSM_Task", 4096, this, 5, &nsmHandle);
+
+    initAndStartInitTimer();
 }
 
 void NetworkStateMachine::closeNetworkStateMachine()
 {
-    if(nsmHandle != NULL) {
-        vTaskDelete(nsmHandle);
-    }
-
     ethernetAPI.closeEthernet();
     ActiveWirelessMode wirelessMode = wirelessAPI.getActiveWirelessMode();
     if(wirelessMode == ActiveWirelessMode::WIFI) wirelessAPI.closeWifi();
     else if(wirelessMode == ActiveWirelessMode::ACCESSPOINT) wirelessAPI.closeAccessPoint();
-    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::got_ip_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::network_event_handler));
     ESP_ERROR_CHECK(esp_event_handler_unregister(NETWORK_EVENT, ESP_EVENT_ANY_ID, &NetworkStateMachine::network_event_handler));
+    esp_timer_delete(retryTimer);
 }
 
-void NetworkStateMachine::runNetworkStateMachine()
+void NetworkStateMachine::initAndStartInitTimer()
 {
-    // implement with eventstream or similar not polling -> cleaner and faster 
-    switch (currentState)
-    {
-        case NetworkState::INIT:
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Give Eth and wifi time to connect before potentially starting the accesspoint
-            if(ethernetAPI.getEthIsConnected()) {
-                currentState = NetworkState::ETHERNET;
-            } 
-            else if(wirelessAPI.getWifiIsConnected()) {
-                currentState = NetworkState::WLAN;
-            }
-            else {
-                // maybe retries or smn
-                if(wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::WIFI) {
-                    wirelessAPI.closeWifi();
-                }
-                ESP_LOGW(TAG, "Starting Access point!!!");
-                wirelessAPI.setWirelessConfig("czc-codm", "codmcodm", 2); 
-                wirelessAPI.initAccessPoint();
-                networkConfig.wifiConfigured = false;
-                currentState = NetworkState::ACCESS_POINT;
-            }
-            break;
-        
-        case NetworkState::ETHERNET:
-            if(!ethernetAPI.getEthIsConnected()) {
-                if(wirelessAPI.getWifiIsConnected()) {
-                    currentState = NetworkState::WLAN;
-                }
-            }
-            break;
-        
-        case NetworkState::WLAN:
-            if(!wirelessAPI.getWifiIsConnected()) {
-                if(ethernetAPI.getEthIsConnected()) {
-                    currentState = NetworkState::ETHERNET;
-                }
-            }   
-            break;
-
-        case NetworkState::ACCESS_POINT:
-            if(networkConfigChanged == true) {
-                nvsAPI.getNetworkConfigFromNvs(networkConfig);
-                if(wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::ACCESSPOINT) {
-                    wirelessAPI.closeAccessPoint();
-                }
-                wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password, 2);
-                wirelessAPI.initWifi();
-                currentState = NetworkState::WLAN;
-            }
-            else if(ethernetAPI.getEthIsConnected()) {
-                wirelessAPI.closeAccessPoint();
-                currentState = NetworkState::ETHERNET;
-            }    
-            break;
-
-        default:
-            break;
-    }
+    esp_timer_create_args_t initTimerConfig = {
+        .callback = NetworkStateMachine::initTimerCallback,
+        .arg = nullptr,
+        .name = "networkInitTimer",
+        .skip_unhandled_events = false
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&initTimerConfig, &initTimer));
+    ESP_ERROR_CHECK(esp_timer_start_once(initTimer, 5000000)); 
 }
 
-void NetworkStateMachine::taskLoopNetworkStateMachine(void* pvParameters) {
-    auto* self = static_cast<NetworkStateMachine*>(pvParameters);
-    while (true)
-    {
-        self->runNetworkStateMachine();
-        vTaskDelay(pdMS_TO_TICKS(100)); // give room for other tasks 
-        ESP_LOGW(TAG, "Current NetworkStateMachine state: ");
-        switch (self->currentState)
-        {
-        case NetworkState::INIT:
-            ESP_LOGW(TAG, "INIT");
-            break;
-        
-        case NetworkState::WLAN:
-            ESP_LOGW(TAG, "WLAN");
-            break;
-
-        case NetworkState::ETHERNET:
-            ESP_LOGW(TAG, "ETHERNET");
-            break;
-
-        case NetworkState::ACCESS_POINT:
-            ESP_LOGW(TAG, "ACCESS POINT");
-            break;
-        }
-    }
-    
-}
-
-void NetworkStateMachine::got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+void NetworkStateMachine::initTimerCallback(void *args)
 {
-    auto* self = static_cast<NetworkStateMachine*>(arg);
-    
-    switch (event_id) {
-        case IP_EVENT_STA_GOT_IP: {
-            auto* event = (ip_event_got_ip_t*) event_data;
-            ESP_LOGI(TAG, "Wifi got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-            self->wirelessAPI.setWifiIsConnected(true);
-            break;
-        }
-        
-        case IP_EVENT_STA_LOST_IP: {
-            ESP_LOGI(TAG, "Wifi lost IP!");
-            self->wirelessAPI.setWifiIsConnected(false);
-            break;
-        }
-
-        case IP_EVENT_ETH_GOT_IP: {
-            auto* event = (ip_event_got_ip_t*) event_data;
-            ESP_LOGI(TAG, "Ethernet got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-            self->ethernetAPI.setEthIsConnected(true);
-            break;
-        }
-
-        case IP_EVENT_ETH_LOST_IP: {
-            ESP_LOGI(TAG, "Ethernet lost IP!");
-            self->ethernetAPI.setEthIsConnected(false);
-            break;
-        }
-    }
+    esp_event_post(NETWORK_EVENT, NETWORK_EVENT_INIT_TIMEOUT, nullptr, 0, portMAX_DELAY);
 }
 
+void NetworkStateMachine::initRetryTimer()
+{
+    esp_timer_create_args_t retryTimerConfig = {
+        .callback = NetworkStateMachine::retryTimerCallback,
+        .arg = nullptr,
+        .name = "retryTimer",
+        .skip_unhandled_events = false
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&retryTimerConfig, &retryTimer));
+}
+
+void NetworkStateMachine::retryTimerCallback(void *args)
+{
+    esp_event_post(NETWORK_EVENT, NETWORK_EVENT_RETRY_TIMEOUT, nullptr, 0, portMAX_DELAY);
+}
+
+// Behavior: Wifi is started when there is a config in the nvs, eth is started all the time
+// After 5s if neither ethernet nor wifi is connected start the accesspoint
+// If wifi loses connection start the retry timer and if it finishes without a reestablished connection switch to ethernet
+// This is implemented for ethernet and wifi
+// When the wifi config is changed the accesspoint and wifi shut down, the config is saved and wifi starts again
+// Note: When your wifi config is wrong from the AP you are cooked
 void NetworkStateMachine::network_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     auto* self = static_cast<NetworkStateMachine*>(arg);
-    switch (event_id) {
-        case NETWORK_EVENT_CONFIG_UPDATED: {
-            ESP_LOGI(TAG, "Wifi config changed!");
-            self->networkConfigChanged = true;
-            break;
+
+    if (event_base == IP_EVENT) {
+        switch (event_id) {
+            case IP_EVENT_STA_GOT_IP:
+                self->wirelessAPI.setWifiIsConnected(true);
+                ESP_LOGI(TAG, "Wifi got IP"); 
+                if(self->ethernetAPI.getEthIsConnected() == false) {
+                    self->setState(NetworkState::WLAN);
+                    ESP_LOGI(TAG, "Wifi got IP -> changing mode to Wifi");
+                }
+                break;
+
+            case IP_EVENT_ETH_GOT_IP:
+                self->setState(NetworkState::ETHERNET);
+                self->ethernetAPI.setEthIsConnected(true);
+                ESP_LOGI(TAG, "Ethernet got IP -> changing mode to Ethernet");
+                break;
+
+            case IP_EVENT_STA_LOST_IP:
+                self->setState(NetworkState::ETHERNET);
+                ESP_LOGI(TAG, "Wifi lost IP -> changing mode to Ethernet");
+                break;
+
+            case IP_EVENT_ETH_LOST_IP:
+                ESP_LOGI(TAG, "Ethernet lost IP");
+                if(self->networkConfig.wifiConfigured) {
+                    self->setState(NetworkState::WLAN);
+                    ESP_LOGI(TAG, "Ethernet lost IP -> changing mode to Wifi");
+                } 
+                break;
         }
+    }
+    else if (event_base == NETWORK_EVENT) {
+        switch (event_id) {
+            case NETWORK_EVENT_CONFIG_UPDATED: 
+                ESP_LOGI(TAG, "Wifi config changed -> changing mode to Wifi");
+                if(self->wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::WIFI) self->wirelessAPI.closeWifi();
+                else if(self->wirelessAPI.getActiveWirelessMode() == ActiveWirelessMode::ACCESSPOINT) self->wirelessAPI.closeAccessPoint();
+                self->nvsAPI.getNetworkConfigFromNvs(self->networkConfig);
+                self->wirelessAPI.setWirelessConfig(self->networkConfig.ssid, self->networkConfig.password);
+                self->setState(NetworkState::WLAN);
+                break;
+
+            case NETWORK_EVENT_INIT_TIMEOUT: 
+                ESP_LOGI(TAG, "Init timer finished");
+                if(self->currentState == NetworkState::INIT) {
+                    ESP_LOGI(TAG, "Starting Accesspoint!");
+                    self->setState(NetworkState::ACCESS_POINT);
+                }
+                esp_timer_delete(self->initTimer);
+                break;
+        }
+    }
+}
+
+void NetworkStateMachine::setState(NetworkState newState)
+{
+    if(newState == currentState) return;
+
+    // state exit 
+    switch (currentState) {
+        case NetworkState::ACCESS_POINT:
+            wirelessAPI.closeAccessPoint();
+            break;
+        case NetworkState::WLAN:
+            wirelessAPI.closeWifi();
+            break;
+        case NetworkState::ETHERNET:
+            ethernetAPI.closeEthernet();
+            break;
+        case NetworkState::RETRY_ETHERNET: 
+            ESP_ERROR_CHECK(esp_timer_start_once(retryTimer, 250000));
+            break;
+        case NetworkState::RETRY_WIFI: 
+            ESP_ERROR_CHECK(esp_timer_start_once(retryTimer, 250000)); 
+            break;
+        default:
+            break;
+    }
+
+    currentState = newState;
+
+    // state init
+    switch (currentState) {
+        case NetworkState::ACCESS_POINT:
+            wirelessAPI.initAccessPoint();
+            break;
+        case NetworkState::WLAN:
+            wirelessAPI.initWifi();
+            break;
+        case NetworkState::ETHERNET:
+            ethernetAPI.initEthernet();
+            break;
+        case NetworkState::RETRY_ETHERNET: 
+            ESP_ERROR_CHECK(esp_timer_start_once(retryTimer, 250000)); 
+            break;
+        case NetworkState::RETRY_WIFI: 
+            ESP_ERROR_CHECK(esp_timer_start_once(retryTimer, 250000)); 
+            break;
+        default:
+            break;
     }
 }

@@ -2,13 +2,8 @@
 
 const char* WirelessAPI::TAG = "wireless";
 
-WirelessAPI::WirelessAPI(char* _ssid, char* _password, uint8_t _maxConnected)
-    : ssid(_ssid), password(_password), maxConnected(2), activeWirelessMode(ActiveWirelessMode::OFF), wifiIsConnected(false)
-{
-}
-
-WirelessAPI::WirelessAPI()
-    : ssid("czc-codm"), password("codmcodm"), maxConnected(2), activeWirelessMode(ActiveWirelessMode::OFF), wifiIsConnected(false)
+WirelessAPI::WirelessAPI(char *_accessPointSsid, char *_accessPointPassword, uint8_t _accessPointMaxConnected)
+    : accessPointSsid(_accessPointSsid), accessPointPassword(_accessPointPassword),accessPointMaxConnected(_accessPointMaxConnected) ,activeWirelessMode(ActiveWirelessMode::OFF), wifiIsConnected(false)
 {
 }
 
@@ -17,11 +12,10 @@ WirelessAPI::~WirelessAPI()
     esp_wifi_deinit();
 }
 
-void WirelessAPI::setWirelessConfig(char *_ssid, char *_password, uint8_t _maxConnected)
+void WirelessAPI::setWirelessConfig(char *_ssid, char *_password)
 {
     this->ssid = _ssid;
     this->password = _password;
-    this->maxConnected = _maxConnected;
 }
 
 void WirelessAPI::initAccessPoint()
@@ -39,7 +33,7 @@ void WirelessAPI::initAccessPoint()
     strncpy((char*)accessPointConfig.ap.password, this->password, sizeof(accessPointConfig.ap.password));
     accessPointConfig.ap.ssid_len = strlen((char*)accessPointConfig.ap.ssid);
     accessPointConfig.ap.authmode = WIFI_AUTH_WPA2_PSK;
-    accessPointConfig.ap.max_connection = maxConnected;
+    accessPointConfig.ap.max_connection = accessPointMaxConnected;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &accessPointConfig));

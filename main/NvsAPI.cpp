@@ -40,7 +40,7 @@ bool NvsAPI::saveNetworkConfigToNvs(const NetworkConfig &networkConfig)
 
     nvs_commit(handle);
     nvs_close(handle);
-    esp_event_post(NETWORK_EVENT, NETWORK_EVENT_CONFIG_UPDATED, nullptr, NULL, NULL);
+    esp_event_post(NETWORK_EVENT, NETWORK_EVENT_CONFIG_UPDATED, nullptr, 0, portMAX_DELAY);
     return true;
 }
 

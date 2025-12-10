@@ -30,7 +30,7 @@ extern "C" void app_main(){
     NvsAPI nvsAPI;
     IoAPI ioAPI;
     EthernetAPI ethernetAPI;
-    WirelessAPI wirelessAPI;
+    WirelessAPI wirelessAPI("czc-codm", "codmcodm", 2);
     NetworkStateMachine networkStateMachine(ethernetAPI, wirelessAPI, nvsAPI);
     nvsAPI.initNvs();
     networkStateMachine.initNetworkStateMachine();

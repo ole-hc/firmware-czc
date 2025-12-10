@@ -4,13 +4,15 @@
 #include "WirelessAPI.h"
 #include "NvsAPI.h"
 #include "network_event.h"
-#include "freertos/task.h"
+#include "esp_timer.h"
 
 enum class NetworkState {
     INIT,
     ETHERNET,
     WLAN,
-    ACCESS_POINT
+    ACCESS_POINT,
+    RETRY_ETHERNET,
+    RETRY_WIFI
 };
 
 class NetworkStateMachine
@@ -23,16 +25,18 @@ private:
     NvsAPI& nvsAPI;
     
     NetworkConfig networkConfig;
-    bool networkConfigChanged;
-    TaskHandle_t nsmHandle;
+    esp_timer_handle_t initTimer;
+    esp_timer_handle_t retryTimer;
 
-    static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
     static void network_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+    void initAndStartInitTimer();
+    static void initTimerCallback(void* args);
+    void initRetryTimer();
+    static void retryTimerCallback(void* args);
 public:
     NetworkStateMachine(EthernetAPI& _ethernetAPI, WirelessAPI& _wirelessAPI, NvsAPI& _nvsAPI);
     ~NetworkStateMachine();
     void initNetworkStateMachine();
     void closeNetworkStateMachine();
-    void runNetworkStateMachine();
-    static void taskLoopNetworkStateMachine(void* pvParameters);
+    void setState(NetworkState newState);
 };

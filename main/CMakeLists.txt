@@ -7,4 +7,5 @@ idf_component_register(SRCS "HttpServer.cpp" "main.cpp" "FilesystemAPI.cpp" "Eth
                        REQUIRES esp_driver_gpio
                        REQUIRES esp_wifi
                        REQUIRES esp_http_server
+                       REQUIRES esp_timer
                        INCLUDE_DIRS "")

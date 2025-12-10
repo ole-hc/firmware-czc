@@ -9,12 +9,12 @@ private:
     static const char* TAG;
     httpd_config_t httpConfig;
     httpd_handle_t httpServer;
-    static const httpd_uri_t index_uri;
+    httpd_uri_t index_uri;
 public:
     HttpServer();
     ~HttpServer();
     void startHttpServer();
     void closeHttpServer();
-    void indexGetHandler();
+    static esp_err_t indexGetHandler(httpd_req_t* request);
 };
 

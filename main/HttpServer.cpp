@@ -28,9 +28,10 @@ void HttpServer::closeHttpServer()
     ESP_ERROR_CHECK(httpd_stop(&httpServer));
 }
 
-esp_err_t  HttpServer::indexGetHandler(httpd_req_t)
+esp_err_t  HttpServer::indexGetHandler(httpd_req_t* request)
 {
+    ESP_LOGI(TAG, "Index handler called ..");
     const char* resp_str = "<h1>Hello World</h1>";
-    httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send(request, resp_str, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
