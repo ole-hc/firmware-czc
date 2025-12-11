@@ -4,7 +4,10 @@ idf_component_register(
         "esp/FilesystemAPI.cpp" 
         "esp/NvsAPI.cpp" 
         "esp/IoAPI.cpp" 
-        "httpServer/HttpServer.cpp"
+        "esp/SystemManager.cpp"
+        "communication/HttpServer.cpp"
+        "communication/RestAPI.cpp"
+        "communication/MqttTelemetry.cpp"
         "network/EthernetAPI.cpp" 
         "network/WirelessAPI.cpp" 
         "network/NetworkStateMachine.cpp" 
@@ -13,7 +16,7 @@ idf_component_register(
         INCLUDE_DIRS 
         ""
         "esp"
-        "httpServer"
+        "communication"
         "network"
         "zigBeeChip"
     REQUIRES 
