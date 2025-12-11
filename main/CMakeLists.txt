@@ -1,11 +1,29 @@
-idf_component_register(SRCS "HttpServer.cpp" "main.cpp" "FilesystemAPI.cpp" "EthernetAPI.cpp" "NvsAPI.cpp" "IoAPI.cpp" "CcZnpAPI.cpp" "CcFrameAPI.cpp" "WirelessAPI.cpp" "NetworkStateMachine.cpp" "HttpServer.cpp"
-                       PRIV_REQUIRES spi_flash
-                       REQUIRES littlefs
-                       REQUIRES esp_netif
-                       REQUIRES esp_eth
-                       REQUIRES nvs_flash
-                       REQUIRES esp_driver_gpio
-                       REQUIRES esp_wifi
-                       REQUIRES esp_http_server
-                       REQUIRES esp_timer
-                       INCLUDE_DIRS "")
+idf_component_register(
+    SRCS 
+        "main.cpp"  
+        "esp/FilesystemAPI.cpp" 
+        "esp/NvsAPI.cpp" 
+        "esp/IoAPI.cpp" 
+        "httpServer/HttpServer.cpp"
+        "network/EthernetAPI.cpp" 
+        "network/WirelessAPI.cpp" 
+        "network/NetworkStateMachine.cpp" 
+        "zigBeeChip/CcZnpAPI.cpp" 
+        "zigBeeChip/CcFrameAPI.cpp" 
+        INCLUDE_DIRS 
+        ""
+        "esp"
+        "httpServer"
+        "network"
+        "zigBeeChip"
+    REQUIRES 
+        spi_flash
+        littlefs
+        esp_netif
+        esp_eth
+        nvs_flash
+        esp_driver_gpio
+        esp_wifi
+        esp_http_server
+        esp_timer
+)
