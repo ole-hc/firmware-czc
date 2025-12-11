@@ -13,6 +13,7 @@ idf_component_register(
         "network/NetworkStateMachine.cpp" 
         "zigBeeChip/CcZnpAPI.cpp" 
         "zigBeeChip/CcFrameAPI.cpp" 
+        "zigBeeChip/CcChipController.cpp"
         INCLUDE_DIRS 
         ""
         "esp"
