@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <h1>ESP32 Dashboard</h1>
+
+  <button onclick="ledOn()">LED AN</button>
+  <button onclick="ledOff()">LED AUS</button>
+
+  <div>
+    Temperatur: <span id="temp">--</span> °C
+  </div>
+  <div>
+    FS Usage: <span id="fs">--</span> %
+  </div>
+
+  <script src="/script.js"></script>
+</body>
