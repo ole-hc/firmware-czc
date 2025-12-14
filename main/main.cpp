@@ -25,6 +25,7 @@ struct hardwareConfig {
 */
 
 extern "C" void app_main(){
+    // --- setup ---
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     FilesystemAPI filesystemAPI;
@@ -45,6 +46,7 @@ extern "C" void app_main(){
 
     esp_log_level_set("*", ESP_LOG_INFO); 
 
+    // --- program --- 
     ioAPI.powerLedHigh();
     ioAPI.modeLedHigh();
 
@@ -53,6 +55,7 @@ extern "C" void app_main(){
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
+    // --- close --- 
     nvsAPI.closeNvs();
     networkStateMachine.closeNetworkStateMachine();
     httpServer.closeHttpServer();
