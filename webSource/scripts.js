@@ -6,7 +6,7 @@ function ledOff() {
   fetch("/api/led/off", { method: "POST" });
 }
 
-// SSE EventStream öffnen
+// open event stream
 const evtSource = new EventSource("/events");
 
 evtSource.onmessage = function(event) {

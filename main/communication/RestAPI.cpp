@@ -2,8 +2,8 @@
 
 const char* RestAPI::TAG = "RestAPI";
 
-RestAPI::RestAPI(httpd_handle_t _httpServer)
-    :httpServer(_httpServer)
+RestAPI::RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, NetworkStateMachine& _networkStateMachine)
+    :httpServer(_httpServer), filesystemAPI(_filesystemAPI), nvsAPI(_nvsAPI), ioAPI(_ioAPI), networkStateMachine(_networkStateMachine)
 {
 }
 
@@ -11,13 +11,13 @@ RestAPI::~RestAPI()
 {
 }
 
-void RestAPI::startRestAPI()
+void RestAPI::registerHandlers()
 {
     indexUri = {
-        .uri       = "/",               // the address at which the resource can be found
-        .method    = HTTP_GET,          // The HTTP method (HTTP_GET, HTTP_POST, ...)
-        .handler   = indexHandler,   // The function which process the request
-        .user_ctx  = NULL               // Additional user data for context
+        .uri       = "/",
+        .method    = HTTP_GET,
+        .handler   = indexHandler,
+        .user_ctx  = NULL
     };
     ESP_ERROR_CHECK(httpd_register_uri_handler(httpServer, &indexUri));
 
@@ -47,18 +47,18 @@ void RestAPI::startRestAPI()
 }
 
 esp_err_t RestAPI::indexHandler(httpd_req_t* request) {
-    return fileHandler(request, "/littlefs/index.html", "text/html");
+    return fileHandler(request, "/littlefs/index.html");
 }
 
 esp_err_t RestAPI::scriptHandler(httpd_req_t* request) {
-    return fileHandler(request, "/littlefs/script.js", "application/javascript");
+    return fileHandler(request, "/littlefs/script.js");
 }
 
 esp_err_t RestAPI::styleHandler(httpd_req_t* request) {
-    return fileHandler(request, "/littlefs/style.css", "text/css");
+    return fileHandler(request, "/littlefs/style.css");
 }
 
-esp_err_t RestAPI::fileHandler(httpd_req_t *request, const char *path, const char *mime)
+esp_err_t RestAPI::fileHandler(httpd_req_t *request, const char *path)
 {
     ESP_LOGI(TAG, "Index handler called ..");
     

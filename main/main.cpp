@@ -26,17 +26,22 @@ struct hardwareConfig {
 
 extern "C" void app_main(){
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
     FilesystemAPI filesystemAPI;
     NvsAPI nvsAPI;
     IoAPI ioAPI;
     EthernetAPI ethernetAPI;
     WirelessAPI wirelessAPI("czc-codm", "codmcodm", 2);
     NetworkStateMachine networkStateMachine(ethernetAPI, wirelessAPI, nvsAPI);
-    HttpServer httpServer;
 
     nvsAPI.initNvs();
     networkStateMachine.initNetworkStateMachine();
+
+    HttpServer httpServer;
     httpServer.startHttpServer();
+
+    RestAPI restAPI(httpServer.getHandle(), filesystemAPI, nvsAPI, ioAPI, networkStateMachine);
+    restAPI.registerHandlers();
 
     esp_log_level_set("*", ESP_LOG_INFO); 
 

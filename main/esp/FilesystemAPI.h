@@ -1,3 +1,4 @@
+#pragma once
 #include "esp_littlefs.h"
 #include "esp_log.h"
 

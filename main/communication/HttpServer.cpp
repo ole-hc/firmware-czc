@@ -14,12 +14,15 @@ HttpServer::~HttpServer()
 void HttpServer::startHttpServer()
 {
     ESP_ERROR_CHECK(httpd_start(&httpServer, &httpConfig));
-    RestAPI restAPI(httpServer);
-    restAPI.startRestAPI();
     ESP_LOGI(TAG, "Http server started!");
 }
 
 void HttpServer::closeHttpServer()
 {
     ESP_ERROR_CHECK(httpd_stop(&httpServer));
+}
+
+httpd_handle_t HttpServer::getHandle()
+{
+    return httpServer;
 }
