@@ -22,6 +22,9 @@ FIRMWARE-CZC
 └── CMakeLists.txt          # Build configuration
 ```
 
+### UML Component Diagram
+Soon :)
+
 ### UML Conceptual Class Diagram
 This diagram depicts the basic class structure of the software project with a brief description of each class.
 ![UML Conceptual Class Diagram](/documentation/UML%20Conceptual%20Class%20Diagram.png)
