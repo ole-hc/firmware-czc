@@ -14,6 +14,7 @@
 #include "CcZnpAPI.h"
 #include "NetworkStateMachine.h"
 #include "HttpServer.h"
+#include "RestAPI.h"
 
  /*
 struct hardwareConfig {

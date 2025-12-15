@@ -1,33 +1,12 @@
 idf_component_register(
-    SRCS 
-        "main.cpp"  
-        "esp/FilesystemAPI.cpp" 
-        "esp/NvsAPI.cpp" 
-        "esp/IoAPI.cpp" 
-        "esp/SystemManager.cpp"
-        "communication/HttpServer.cpp"
-        "communication/RestAPI.cpp"
-        "communication/MqttTelemetry.cpp"
-        "network/EthernetAPI.cpp" 
-        "network/WirelessAPI.cpp" 
-        "network/NetworkStateMachine.cpp" 
-        "zigBeeChip/CcZnpAPI.cpp" 
-        "zigBeeChip/CcFrameAPI.cpp" 
-        "zigBeeChip/CcChipController.cpp"
-        INCLUDE_DIRS 
-        ""
-        "esp"
-        "communication"
-        "network"
-        "zigBeeChip"
+    SRCS "main.cpp"  
+    INCLUDE_DIRS "."
     REQUIRES 
-        spi_flash
-        littlefs
-        esp_netif
-        esp_eth
-        nvs_flash
-        esp_driver_gpio
-        esp_wifi
-        esp_http_server
-        esp_timer
+        System
+        Storage
+        Network
+        HttpServer
+        RestAPI
+        ZigBeeChip
+        MqttTelemetry
 )
