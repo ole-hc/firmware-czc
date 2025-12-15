@@ -15,6 +15,7 @@
 #include "NetworkStateMachine.h"
 #include "HttpServer.h"
 #include "RestAPI.h"
+#include "EventQueue.h"
 
  /*
 struct hardwareConfig {
