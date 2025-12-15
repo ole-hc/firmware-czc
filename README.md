@@ -1,53 +1,77 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-H21 | ESP32-H4 | ESP32-P4 | ESP32-S2 | ESP32-S3 | Linux |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | --------- | -------- | -------- | -------- | -------- | ----- |
+# Project documentation
 
-# Hello World Example
+### Folder structure
 
-Starts a FreeRTOS task to print "Hello World".
-
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
-
-## How to use example
-
-Follow detailed instructions provided specifically for this example.
-
-Select the instructions depending on Espressif chip installed on your development board:
-
-- [ESP32 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html)
-- [ESP32-S2 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s2/get-started/index.html)
-
-
-## Example folder contents
-
-The project **hello_world** contains one source file in C language [hello_world_main.c](main/hello_world_main.c). The file is located in folder [main](main).
-
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt` files that provide set of directives and instructions describing the project's source files and targets (executable, library, or both).
-
-Below is short explanation of remaining files in the project folder.
-
-```
-├── CMakeLists.txt
-├── pytest_hello_world.py      Python script used for automated testing
-├── main
-│   ├── CMakeLists.txt
-│   └── hello_world_main.c
-└── README.md                  This is the file you are currently reading
+```text
+FIRMWARE-CZC
+├── build                   # Build output (bootloader, app binaries, partition table)
+│   ├── bootloader          # Bootloader build artifacts
+│   ├── firmware-czc.elf    # Compiled application ELF
+│   ├── partition_table     # Partition table binary
+│   └── esp-idf             # Compiled ESP-IDF components
+├── documentation           # images and source files for the documentation 
+├── main                    # Application source code
+│   ├── communication       # REST API, HTTP server handlers
+│   ├── network             # Network state machine, Wi-Fi/Ethernet logic
+│   ├── esp                 # ESP-specific utilities
+│   └── zigBeeChip          # ZigBee integration
+├── websource               # html, js and css files for the webinterface  
+├── components              # Custom reusable modules (if present)
+├── sdkconfig               # Project configuration
+├── partitions_4mb.csv      # custom partition table 
+└── CMakeLists.txt          # Build configuration
 ```
 
-For more information on structure and contents of ESP-IDF projects, please refer to Section [Build System](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html) of the ESP-IDF Programming Guide.
+### UML Conceptual Class Diagram
+This diagram depicts the basic class structure of the software project with a brief description of each class.
+![UML Conceptual Class Diagram](/documentation/UML%20Conceptual%20Class%20Diagram.png)
+All objects and tasks are created in the main.cpp file. The proxy functionality is implemented in the CcChipController.
 
-## Troubleshooting
+### Network state machine
+The network state machine is a special concept in this project. It provides the complete functionality of the network components during startup and runtime.
+Behavior: Wi‑Fi is started when a configuration exists in NVS, Ethernet is always started.
+After 5 seconds, if neither Ethernet nor Wi‑Fi is connected, the Access Point is started.
+If Wi‑Fi loses connection, a retry timer is triggered. If the timer finishes without a re‑established connection, the system switches to Ethernet.
+This mechanism is implemented for both directions: Ethernet → Wi‑Fi and Wi‑Fi → Ethernet.
+When the Wi‑Fi configuration is changed, the Access Point, Wi‑Fi, and Ethernet are shut down, the new configuration is saved, and Wi‑Fi is started again.
+Note: If you configure Wi‑Fi credentials via the Access Point and they are wrong, the system cannot connect.
 
-* Program upload failure
+Wireless and Ethernet each have their own small event handlers: eth_event_handler (Ethernet events), wifi_event_handler (Wi‑Fi events). In the state machine, a combined event handler called network_event_handler is defined. It controls the state machine and reacts to IP events as well as custom network events (defined in network_event.h). These custom events are used for special cases such as updated Wi‑Fi configuration, initialization timer timeout, and other project‑specific events.
 
-    * Hardware connection is not correct: run `idf.py -p PORT monitor`, and reboot your board to see if there are any output logs.
-    * The baud rate for downloading is too high: lower your baud rate in the `menuconfig` menu, and try again.
+### Non volatile storage
+Configuration data in non‑volatile storage is organized into component‑specific configuration structs, which are defined in NvsAPI.h. At present, only complete configuration structures can be saved or loaded; partial updates are not supported.
 
-## Technical support and feedback
+### RestAPI
+The web interface must communicate bidirectionally with the ESP32. For requests from the web interface to the ESP32, a REST API is provided. For communication in the opposite direction (ESP32 → web interface), Server‑Sent Events (SSE) are used. In this model, the browser’s JavaScript opens an HTTP connection to a REST endpoint, and the connection remains open throughout runtime.
 
-Please use the following feedback channels:
+Events in the stream follow the SSE format:
 
-* For technical queries, go to the [esp32.com](https://esp32.com/) forum
-* For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-idf/issues)
+    event: 'event' \n
+    data: 'data' \n\n
 
-We will get back to you as soon as possible.
+This mechanism is implemented using a global event queue. Any component can publish data to this queue, while a dedicated task continuously processes queued events and pushes them to the frontend. Specific REST API functions are described in the API section, and the available SSE events are documented separately in the SSE events section.
+
+#### API functions
+This section documents all REST API endpoints that are exposed by the ESP32. Note: not every internal method in RestAPI.cpp is listed here — only the URIs that are accessible from the web interface.
+
+| URI          | Method | Description                                                                 |
+|--------------|--------|-----------------------------------------------------------------------------|
+| `/`          | GET    | Serves the main index page (HTML dashboard).                                |
+| `/scripts.js`| GET    | Provides JavaScript resources required by the web interface.                |
+| `/style.css` | GET    | Provides CSS styles for the web interface.                                  |
+| `/events`    | GET    | Opens a Server‑Sent Events (SSE) stream. Used for ESP32 → Web communication.|
+
+Notes
+
+    The index, scripts, and style URIs are static file endpoints served from the filesystem.
+
+    The /events URI is special: it keeps the HTTP connection open and streams events in SSE format.
+
+    SSE events are documented in the dedicated SSE Events section.
+
+#### SSE events
+Currently there are no implemented events.
+
+### Cc chip controller
+This class provides the high level API of the Texas instruments CC2652P4 used for the ZigBee / Thread communication. 
+More detailed documentation coming soon. 
