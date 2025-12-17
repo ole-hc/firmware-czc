@@ -59,34 +59,18 @@ void RestAPI::pollFrontendDataTask(void* pvParameters)
     }    
 }
 
-esp_err_t RestAPI::fileHandler(httpd_req_t *request, const char *path)
-{
-    ESP_LOGI(TAG, "Index handler called ..");
-    
-    FILE* f = fopen("/littlefs/index.html", "r");
-    if (!f) {
-        httpd_resp_send_404(request);
-        return ESP_FAIL;
-    }
-    char buf[512];
-    size_t read_bytes;
-    while ((read_bytes = fread(buf, 1, sizeof(buf), f)) > 0) {
-        httpd_resp_send_chunk(request, buf, read_bytes);
-    }
-    fclose(f);
-    httpd_resp_send_chunk(request, NULL, 0); 
-    return ESP_OK;
-}
-
 esp_err_t RestAPI::indexHandler(httpd_req_t* request) {
+    httpd_resp_set_type(request, "text/html");
     return fileHandler(request, "/littlefs/index.html");
 }
 
 esp_err_t RestAPI::scriptHandler(httpd_req_t* request) {
+    httpd_resp_set_type(request, "application/javascript");
     return fileHandler(request, "/littlefs/script.js");
 }
 
 esp_err_t RestAPI::styleHandler(httpd_req_t* request) {
+    httpd_resp_set_type(request, "text/css");
     return fileHandler(request, "/littlefs/style.css");
 }
 
@@ -103,6 +87,25 @@ esp_err_t RestAPI::eventsHandler(httpd_req_t* request) {
     return ESP_OK;
 }
 
+esp_err_t RestAPI::fileHandler(httpd_req_t *request, const char *path)
+{
+    ESP_LOGI(TAG, "Index handler called ..");
+    
+    FILE* f = fopen(path, "r");
+    if (!f) {
+        httpd_resp_send_404(request);
+        return ESP_FAIL;
+    }
+    char buf[512];
+    size_t read_bytes;
+    while ((read_bytes = fread(buf, 1, sizeof(buf), f)) > 0) {
+        httpd_resp_send_chunk(request, buf, read_bytes);
+    }
+    fclose(f);
+    httpd_resp_send_chunk(request, NULL, 0); 
+    return ESP_OK;
+}
+
 esp_err_t RestAPI::sendEvent(httpd_req_t* eventStreamRequest, std::string event, std::string data)
 {
     if(eventStreamRequest == nullptr) return ESP_FAIL;
@@ -116,12 +119,17 @@ esp_err_t RestAPI::sendEvent(httpd_req_t* eventStreamRequest, std::string event,
 }
 
 // REFACTOR AAGGGHGHHH
+// Fehler mit der Gültigkeit der Request handels. Mögliche Lösung ist es im SSE handler eine Task zu starten welche sich mit dem management auseinandersetzt 
+// im handler bleibt die referenz auf jeden fall gültig und mehrere clients wären auch ohne vector möglich. 
+// vorher aber lieber nochmal weiter rechachieren über mehrere clients im eventstream aufm esp32 
 void RestAPI::sendEventToAllClients()
 {
+    ESP_LOGW(TAG, "Start send event");
     uint8_t counter = 0;
     std::string sseEventErrorState = "NULL";
     for (httpd_req_t* client : eventStreamClients)
     {
+        ESP_LOGW(TAG, "Start send event");
         SseEvent toBeSend = eventQueue.pop();
         if(toBeSend.type == sseEventErrorState && toBeSend.data == sseEventErrorState) {
             ESP_LOGW(TAG, "Received faulty Sse event!");

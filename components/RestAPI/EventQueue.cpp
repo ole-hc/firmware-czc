@@ -14,6 +14,7 @@ EventQueue::~EventQueue()
 void EventQueue::initQueue()
 {
     eventQueue = xQueueCreate(10, sizeof(SseEvent));
+    ESP_LOGI(TAG, "Event queue initialised");
 }
 
 void EventQueue::push(const char* _type, const char* _data)
