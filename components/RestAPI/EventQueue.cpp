@@ -30,11 +30,12 @@ void EventQueue::push(const char* _type, const char* _data)
 
 SseEvent EventQueue::pop()
 {
-    SseEvent* event = nullptr;
+    SseEvent event {"NULL", "NULL"};
+    
     if(eventQueue == nullptr) {
         ESP_LOGW(TAG, "Tried to pop event from uninitialized event queue");
-        return *event;
+        return event;
     }
-    xQueueReceive(eventQueue, event, 0);
-    return *event;
+    xQueueReceive(eventQueue, &event, 0);
+    return event;
 }

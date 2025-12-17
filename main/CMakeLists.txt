@@ -9,5 +9,4 @@ idf_component_register(
         RestAPI
         ZigBeeChip
         MqttTelemetry
-        EventQueue
 )

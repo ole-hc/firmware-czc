@@ -43,8 +43,13 @@ extern "C" void app_main(){
     HttpServer httpServer;
     httpServer.startHttpServer();
 
-    RestAPI restAPI(httpServer.getHandle(), filesystemAPI, nvsAPI, ioAPI, networkStateMachine);
+    EventQueue eventQueue;
+    eventQueue.initQueue();
+
+    RestAPI restAPI(httpServer.getHandle(), filesystemAPI, nvsAPI, ioAPI, networkStateMachine, eventQueue);
     restAPI.registerHandlers();
+    TaskHandle_t updateFrontendTask = NULL; 
+    xTaskCreate(restAPI.pollFrontendDataTask, "SendEventstreamDataToFrontend", 4096, &restAPI, 5, &updateFrontendTask);
 
     esp_log_level_set("*", ESP_LOG_INFO); 
 
@@ -61,6 +66,9 @@ extern "C" void app_main(){
     nvsAPI.closeNvs();
     networkStateMachine.closeNetworkStateMachine();
     httpServer.closeHttpServer();
+    if(updateFrontendTask != NULL) {
+        vTaskDelete(updateFrontendTask);
+    }
 }
 
 // Todo: NetworkStateMachine 

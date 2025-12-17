@@ -1,9 +1,10 @@
 #include "RestAPI.h"
 
 const char* RestAPI::TAG = "RestAPI";
+std::vector<httpd_req_t*> RestAPI::eventStreamClients;
 
-RestAPI::RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, NetworkStateMachine& _networkStateMachine)
-    :httpServer(_httpServer), filesystemAPI(_filesystemAPI), nvsAPI(_nvsAPI), ioAPI(_ioAPI), networkStateMachine(_networkStateMachine), eventStreamRequest(nullptr)
+RestAPI::RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, NetworkStateMachine& _networkStateMachine, EventQueue& _eventQueue)
+    :httpServer(_httpServer), filesystemAPI(_filesystemAPI), nvsAPI(_nvsAPI), ioAPI(_ioAPI), networkStateMachine(_networkStateMachine), eventQueue(_eventQueue)
 {
 }
 
@@ -46,38 +47,16 @@ void RestAPI::registerHandlers()
     ESP_ERROR_CHECK(httpd_register_uri_handler(httpServer, &eventURI));
 }
 
-esp_err_t RestAPI::indexHandler(httpd_req_t* request) {
-    return fileHandler(request, "/littlefs/index.html");
-}
-
-esp_err_t RestAPI::scriptHandler(httpd_req_t* request) {
-    return fileHandler(request, "/littlefs/script.js");
-}
-
-esp_err_t RestAPI::styleHandler(httpd_req_t* request) {
-    return fileHandler(request, "/littlefs/style.css");
-}
-
-// setup event stream 
-esp_err_t RestAPI::eventsHandler(httpd_req_t* request) {
-    RestAPI* self = static_cast<RestAPI*>(request->user_ctx);
-    httpd_resp_set_type(request, "text/event-stream");
-    httpd_resp_set_hdr(request, "Cache-Control", "no-cache");
-    httpd_resp_set_hdr(request, "Connection", "keep-alive");
-
-    self->eventStreamRequest = request;
-
-    return ESP_OK;
-}
-
-void RestAPI::sendEvent(std::string event, std::string data)
+// poll event based data and 
+void RestAPI::pollFrontendDataTask(void* pvParameters)
 {
-    if(eventStreamRequest == nullptr) return;
-
-    std::string messageEvent = std::string("event: ") + event + std::string("\n");
-    std::string messageData = std::string("data: ") + data + std::string("\n\n");
-    httpd_resp_sendstr_chunk(eventStreamRequest, messageEvent.c_str());
-    httpd_resp_sendstr_chunk(eventStreamRequest, messageData.c_str());
+    auto* self = static_cast<RestAPI*>(pvParameters);
+    while (true)
+    {
+        self->pollEventDataFromComponents();
+        self->sendEventToAllClients();
+        vTaskDelay(pdMS_TO_TICKS(1000)); 
+    }    
 }
 
 esp_err_t RestAPI::fileHandler(httpd_req_t *request, const char *path)
@@ -97,4 +76,70 @@ esp_err_t RestAPI::fileHandler(httpd_req_t *request, const char *path)
     fclose(f);
     httpd_resp_send_chunk(request, NULL, 0); 
     return ESP_OK;
+}
+
+esp_err_t RestAPI::indexHandler(httpd_req_t* request) {
+    return fileHandler(request, "/littlefs/index.html");
+}
+
+esp_err_t RestAPI::scriptHandler(httpd_req_t* request) {
+    return fileHandler(request, "/littlefs/script.js");
+}
+
+esp_err_t RestAPI::styleHandler(httpd_req_t* request) {
+    return fileHandler(request, "/littlefs/style.css");
+}
+
+// setup event stream 
+esp_err_t RestAPI::eventsHandler(httpd_req_t* request) {
+    RestAPI* self = static_cast<RestAPI*>(request->user_ctx);
+    httpd_resp_set_type(request, "text/event-stream");
+    httpd_resp_set_hdr(request, "Cache-Control", "no-cache");
+    httpd_resp_set_hdr(request, "Connection", "keep-alive");
+
+    self->eventStreamClients.push_back(request); // register Client
+    ESP_LOGI(TAG, "Client connected to event stream");
+
+    return ESP_OK;
+}
+
+esp_err_t RestAPI::sendEvent(httpd_req_t* eventStreamRequest, std::string event, std::string data)
+{
+    if(eventStreamRequest == nullptr) return ESP_FAIL;
+    esp_err_t response = ESP_OK;
+
+    std::string messageEvent = std::string("event: ") + event + std::string("\n");
+    std::string messageData = std::string("data: ") + data + std::string("\n\n");
+    httpd_resp_sendstr_chunk(eventStreamRequest, messageEvent.c_str());
+    response = httpd_resp_sendstr_chunk(eventStreamRequest, messageData.c_str());
+    return response;
+}
+
+// REFACTOR AAGGGHGHHH
+void RestAPI::sendEventToAllClients()
+{
+    uint8_t counter = 0;
+    std::string sseEventErrorState = "NULL";
+    for (httpd_req_t* client : eventStreamClients)
+    {
+        SseEvent toBeSend = eventQueue.pop();
+        if(toBeSend.type == sseEventErrorState && toBeSend.data == sseEventErrorState) {
+            ESP_LOGW(TAG, "Received faulty Sse event!");
+            break;
+        }
+        
+        esp_err_t response = sendEvent(client, std::string(toBeSend.type), std::string(toBeSend.data));
+        if (response) // TCP connection closed -> removing client
+        {
+            ESP_LOGI(TAG, "Client disconnected from event stream");
+            eventStreamClients.erase(eventStreamClients.begin() + counter);
+        }
+        counter++;
+    }
+}
+
+void RestAPI::pollEventDataFromComponents()
+{
+    SseEvent newEvent("Test", "CheckCheck");
+    eventQueue.push(newEvent.type, newEvent.data);
 }
