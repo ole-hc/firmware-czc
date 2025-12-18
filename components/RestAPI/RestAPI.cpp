@@ -54,7 +54,7 @@ void RestAPI::pollFrontendDataTask(void* pvParameters)
     while (true)
     {
         self->pollEventDataFromComponents();
-        self->sendEventToAllClients();
+        httpd_queue_work(self->httpServer, self->sendEventToAllClients, self);
         vTaskDelay(pdMS_TO_TICKS(1000)); 
     }    
 }
@@ -77,11 +77,20 @@ esp_err_t RestAPI::styleHandler(httpd_req_t* request) {
 // setup event stream 
 esp_err_t RestAPI::eventsHandler(httpd_req_t* request) {
     RestAPI* self = static_cast<RestAPI*>(request->user_ctx);
+
     httpd_resp_set_type(request, "text/event-stream");
     httpd_resp_set_hdr(request, "Cache-Control", "no-cache");
     httpd_resp_set_hdr(request, "Connection", "keep-alive");
 
-    self->eventStreamClients.push_back(request); // register Client
+    // register Client
+    httpd_req_t* client = nullptr;
+    if (httpd_req_async_handler_begin(request, &client) == ESP_OK){
+        ESP_LOGW(TAG, "Push back client!");
+        self->eventStreamClients.push_back(client); 
+    }
+
+    const char* init = ":ok\n\n";
+    httpd_resp_send_chunk(client, init, strlen(init));
     ESP_LOGI(TAG, "Client connected to event stream");
 
     return ESP_OK;
@@ -111,40 +120,38 @@ esp_err_t RestAPI::sendEvent(httpd_req_t* eventStreamRequest, std::string event,
     if(eventStreamRequest == nullptr) return ESP_FAIL;
     esp_err_t response = ESP_OK;
 
-    std::string messageEvent = std::string("event: ") + event + std::string("\n");
-    std::string messageData = std::string("data: ") + data + std::string("\n\n");
-    httpd_resp_sendstr_chunk(eventStreamRequest, messageEvent.c_str());
-    response = httpd_resp_sendstr_chunk(eventStreamRequest, messageData.c_str());
+    std::string messageEvent = std::string("event: ") + event + std::string("\n") +
+                                std::string("data: ") + data + std::string("\n\n");
+    ESP_LOGW(TAG, "GESENDETES EVENT: %s", messageEvent.c_str());
+    response = httpd_resp_send_chunk(eventStreamRequest, messageEvent.c_str(), messageEvent.size());
     return response;
 }
 
-// REFACTOR AAGGGHGHHH
-// Fehler mit der Gültigkeit der Request handels. Mögliche Lösung ist es im SSE handler eine Task zu starten welche sich mit dem management auseinandersetzt 
-// im handler bleibt die referenz auf jeden fall gültig und mehrere clients wären auch ohne vector möglich. 
-// vorher aber lieber nochmal weiter rechachieren über mehrere clients im eventstream aufm esp32 
-void RestAPI::sendEventToAllClients()
-{
+void RestAPI::sendEventToAllClients(void* pvParameters) {
+    RestAPI* self = static_cast<RestAPI*>(pvParameters);
     ESP_LOGW(TAG, "Start send event");
-    uint8_t counter = 0;
+
     std::string sseEventErrorState = "NULL";
-    for (httpd_req_t* client : eventStreamClients)
-    {
-        ESP_LOGW(TAG, "Start send event");
-        SseEvent toBeSend = eventQueue.pop();
-        if(toBeSend.type == sseEventErrorState && toBeSend.data == sseEventErrorState) {
-            ESP_LOGW(TAG, "Received faulty Sse event!");
-            break;
-        }
-        
-        esp_err_t response = sendEvent(client, std::string(toBeSend.type), std::string(toBeSend.data));
-        if (response) // TCP connection closed -> removing client
-        {
+    SseEvent event = self->eventQueue.pop();
+    if (event.type == sseEventErrorState && event.data == sseEventErrorState) {
+        ESP_LOGW(TAG, "Received faulty Sse event!");
+        return;
+    }
+    ESP_LOGW(TAG, "Event %s, data %s", event.type, event.data);
+
+    for (auto client = self->eventStreamClients.begin(); client != self->eventStreamClients.end(); ) {
+        ESP_LOGW(TAG, "Send event!!!!!");
+        esp_err_t result = self->sendEvent(*client, event.type, event.data);
+        if (result != ESP_OK) {
             ESP_LOGI(TAG, "Client disconnected from event stream");
-            eventStreamClients.erase(eventStreamClients.begin() + counter);
+            httpd_req_async_handler_complete(*client);
+            client = eventStreamClients.erase(client); 
+        } else {
+            ++client;
         }
-        counter++;
     }
 }
+
 
 void RestAPI::pollEventDataFromComponents()
 {

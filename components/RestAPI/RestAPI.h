@@ -38,7 +38,7 @@ private:
     static esp_err_t eventsHandler(httpd_req_t* request);
 
     esp_err_t sendEvent(httpd_req_t* eventStreamRequest, std::string event, std::string data);
-    void sendEventToAllClients();
+    static void sendEventToAllClients(void* pvParameters);
     void pollEventDataFromComponents();
 public:
     RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, NetworkStateMachine& _networkStateMachine, EventQueue& _eventQueue);

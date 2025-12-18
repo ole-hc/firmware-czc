@@ -24,8 +24,8 @@ void EventQueue::push(const char* _type, const char* _data)
         return;
     }
     SseEvent event;
-    strncpy(event.type, _type, sizeof(_type));
-    strncpy(event.data, _data, sizeof(_data));
+    strncpy(event.type, _type, strlen(_type));
+    strncpy(event.data, _data, strlen(_data));
     xQueueSend(eventQueue, &event, 0);
 }
 

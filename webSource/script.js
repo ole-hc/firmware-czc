@@ -10,6 +10,7 @@ function ledOff() {
 const evtSource = new EventSource("/events");
 
 evtSource.onmessage = function(event) {
+  console.log("ICH WURDE AUFGERUFEN UND ES GAB EINEN FETTEN FEHLER!")
   const data = JSON.parse(event.data);
   if (data.temperature !== undefined) {
     document.getElementById("temp").innerText = data.temperature;
