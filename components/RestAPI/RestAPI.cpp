@@ -12,6 +12,58 @@ RestAPI::~RestAPI()
 {
 }
 
+// poll event based data and 
+void RestAPI::pollFrontendDataTask(void* pvParameters)
+{
+    auto* self = static_cast<RestAPI*>(pvParameters);
+    while (true)
+    {
+        self->pollEventDataFromComponents();
+        httpd_queue_work(self->httpServer, self->sendEventQueueToAllClients, self);
+        vTaskDelay(pdMS_TO_TICKS(1000)); 
+    }    
+}
+
+void RestAPI::pollEventDataFromComponents()
+{
+    SseEvent newEvent("Test", "CheckCheck");
+    eventQueue.push(newEvent.type, newEvent.data);
+    SseEvent newerEvent("Test2", "Lebron");
+    eventQueue.push(newerEvent.type, newerEvent.data);
+}
+
+
+void RestAPI::sendEventQueueToAllClients(void* pvParameters) {
+    RestAPI* self = static_cast<RestAPI*>(pvParameters);
+    SseEvent event;
+
+    while (self->eventQueue.pop(event)) {
+        for (auto client = self->eventStreamClients.begin(); client != self->eventStreamClients.end(); ) {
+            esp_err_t result = self->sendEvent(*client, event.type, event.data);
+            if (result != ESP_OK) {
+                ESP_LOGI(TAG, "Client disconnected from event stream");
+                httpd_req_async_handler_complete(*client);
+                client = eventStreamClients.erase(client); 
+            } else {
+                ++client;
+            }
+        }
+    }
+}
+
+esp_err_t RestAPI::sendEvent(httpd_req_t* eventStreamRequest, std::string event, std::string data)
+{
+    if(eventStreamRequest == nullptr) return ESP_FAIL;
+    esp_err_t response = ESP_OK;
+
+    std::string messageEvent = std::string("event: ") + event + std::string("\n") +
+                                std::string("data: ") + data + std::string("\n\n");
+    ESP_LOGD(TAG, "Send following event: %s", messageEvent.c_str());
+    response = httpd_resp_send_chunk(eventStreamRequest, messageEvent.c_str(), messageEvent.size());
+    return response;
+}
+
+// API functions: ---
 void RestAPI::registerHandlers()
 {
     indexUri = {
@@ -45,18 +97,6 @@ void RestAPI::registerHandlers()
         .user_ctx = this
     };
     ESP_ERROR_CHECK(httpd_register_uri_handler(httpServer, &eventURI));
-}
-
-// poll event based data and 
-void RestAPI::pollFrontendDataTask(void* pvParameters)
-{
-    auto* self = static_cast<RestAPI*>(pvParameters);
-    while (true)
-    {
-        self->pollEventDataFromComponents();
-        httpd_queue_work(self->httpServer, self->sendEventQueueToAllClients, self);
-        vTaskDelay(pdMS_TO_TICKS(1000)); 
-    }    
 }
 
 esp_err_t RestAPI::indexHandler(httpd_req_t* request) {
@@ -112,43 +152,4 @@ esp_err_t RestAPI::fileHandler(httpd_req_t *request, const char *path)
     fclose(f);
     httpd_resp_send_chunk(request, NULL, 0); 
     return ESP_OK;
-}
-
-esp_err_t RestAPI::sendEvent(httpd_req_t* eventStreamRequest, std::string event, std::string data)
-{
-    if(eventStreamRequest == nullptr) return ESP_FAIL;
-    esp_err_t response = ESP_OK;
-
-    std::string messageEvent = std::string("event: ") + event + std::string("\n") +
-                                std::string("data: ") + data + std::string("\n\n");
-    ESP_LOGD(TAG, "Send following event: %s", messageEvent.c_str());
-    response = httpd_resp_send_chunk(eventStreamRequest, messageEvent.c_str(), messageEvent.size());
-    return response;
-}
-
-void RestAPI::sendEventQueueToAllClients(void* pvParameters) {
-    RestAPI* self = static_cast<RestAPI*>(pvParameters);
-    SseEvent event;
-
-    while (self->eventQueue.pop(event)) {
-        for (auto client = self->eventStreamClients.begin(); client != self->eventStreamClients.end(); ) {
-            esp_err_t result = self->sendEvent(*client, event.type, event.data);
-            if (result != ESP_OK) {
-                ESP_LOGI(TAG, "Client disconnected from event stream");
-                httpd_req_async_handler_complete(*client);
-                client = eventStreamClients.erase(client); 
-            } else {
-                ++client;
-            }
-        }
-    }
-}
-
-
-void RestAPI::pollEventDataFromComponents()
-{
-    SseEvent newEvent("Test", "CheckCheck");
-    eventQueue.push(newEvent.type, newEvent.data);
-    SseEvent newerEvent("Test2", "Lebron");
-    eventQueue.push(newerEvent.type, newerEvent.data);
 }

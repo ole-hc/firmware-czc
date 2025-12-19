@@ -30,16 +30,16 @@ private:
     httpd_uri_t styleURI;
     httpd_uri_t eventURI;
     static std::vector<httpd_req_t*> eventStreamClients;
-
-    static esp_err_t fileHandler(httpd_req_t* request, const char* path);
+    
+    void pollEventDataFromComponents();
+    static void sendEventQueueToAllClients(void* pvParameters);
+    esp_err_t sendEvent(httpd_req_t* eventStreamRequest, std::string event, std::string data);
+    
     static esp_err_t indexHandler(httpd_req_t* request);
     static esp_err_t scriptHandler(httpd_req_t* request);
     static esp_err_t styleHandler(httpd_req_t* request);
     static esp_err_t eventsHandler(httpd_req_t* request);
-
-    esp_err_t sendEvent(httpd_req_t* eventStreamRequest, std::string event, std::string data);
-    static void sendEventQueueToAllClients(void* pvParameters);
-    void pollEventDataFromComponents();
+    static esp_err_t fileHandler(httpd_req_t* request, const char* path);
 public:
     RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, NetworkStateMachine& _networkStateMachine, EventQueue& _eventQueue);
     ~RestAPI();
