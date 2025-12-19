@@ -17,26 +17,32 @@ void EventQueue::initQueue()
     ESP_LOGI(TAG, "Event queue initialised");
 }
 
-void EventQueue::push(const char* _type, const char* _data)
+bool EventQueue::push(const char* _type, const char* _data)
 {
     if(eventQueue == nullptr) {
         ESP_LOGW(TAG, "Tried to push event to uninitialized event queue");
-        return;
+        return false;
     }
     SseEvent event;
-    strncpy(event.type, _type, strlen(_type));
-    strncpy(event.data, _data, strlen(_data));
+    strncpy(event.type, _type, strlen(_type) + 1); // copy \0 as well 
+    strncpy(event.data, _data, strlen(_data) + 1);
     xQueueSend(eventQueue, &event, 0);
+    return true;
 }
 
-SseEvent EventQueue::pop()
+bool EventQueue::pop(SseEvent& event)
 {
-    SseEvent event {"NULL", "NULL"};
-    
     if(eventQueue == nullptr) {
         ESP_LOGW(TAG, "Tried to pop event from uninitialized event queue");
-        return event;
+        return false;
     }
-    xQueueReceive(eventQueue, &event, 0);
-    return event;
+    
+    BaseType_t response = xQueueReceive(eventQueue, &event, 0);
+    
+    if (response == pdFALSE)
+    {
+        ESP_LOGD(TAG, "Queue is empty, returning false");
+        return false;
+    }
+    return true;
 }

@@ -54,7 +54,7 @@ void RestAPI::pollFrontendDataTask(void* pvParameters)
     while (true)
     {
         self->pollEventDataFromComponents();
-        httpd_queue_work(self->httpServer, self->sendEventToAllClients, self);
+        httpd_queue_work(self->httpServer, self->sendEventQueueToAllClients, self);
         vTaskDelay(pdMS_TO_TICKS(1000)); 
     }    
 }
@@ -85,7 +85,6 @@ esp_err_t RestAPI::eventsHandler(httpd_req_t* request) {
     // register Client
     httpd_req_t* client = nullptr;
     if (httpd_req_async_handler_begin(request, &client) == ESP_OK){
-        ESP_LOGW(TAG, "Push back client!");
         self->eventStreamClients.push_back(client); 
     }
 
@@ -122,32 +121,25 @@ esp_err_t RestAPI::sendEvent(httpd_req_t* eventStreamRequest, std::string event,
 
     std::string messageEvent = std::string("event: ") + event + std::string("\n") +
                                 std::string("data: ") + data + std::string("\n\n");
-    ESP_LOGW(TAG, "GESENDETES EVENT: %s", messageEvent.c_str());
+    ESP_LOGD(TAG, "Send following event: %s", messageEvent.c_str());
     response = httpd_resp_send_chunk(eventStreamRequest, messageEvent.c_str(), messageEvent.size());
     return response;
 }
 
-void RestAPI::sendEventToAllClients(void* pvParameters) {
+void RestAPI::sendEventQueueToAllClients(void* pvParameters) {
     RestAPI* self = static_cast<RestAPI*>(pvParameters);
-    ESP_LOGW(TAG, "Start send event");
+    SseEvent event;
 
-    std::string sseEventErrorState = "NULL";
-    SseEvent event = self->eventQueue.pop();
-    if (event.type == sseEventErrorState && event.data == sseEventErrorState) {
-        ESP_LOGW(TAG, "Received faulty Sse event!");
-        return;
-    }
-    ESP_LOGW(TAG, "Event %s, data %s", event.type, event.data);
-
-    for (auto client = self->eventStreamClients.begin(); client != self->eventStreamClients.end(); ) {
-        ESP_LOGW(TAG, "Send event!!!!!");
-        esp_err_t result = self->sendEvent(*client, event.type, event.data);
-        if (result != ESP_OK) {
-            ESP_LOGI(TAG, "Client disconnected from event stream");
-            httpd_req_async_handler_complete(*client);
-            client = eventStreamClients.erase(client); 
-        } else {
-            ++client;
+    while (self->eventQueue.pop(event)) {
+        for (auto client = self->eventStreamClients.begin(); client != self->eventStreamClients.end(); ) {
+            esp_err_t result = self->sendEvent(*client, event.type, event.data);
+            if (result != ESP_OK) {
+                ESP_LOGI(TAG, "Client disconnected from event stream");
+                httpd_req_async_handler_complete(*client);
+                client = eventStreamClients.erase(client); 
+            } else {
+                ++client;
+            }
         }
     }
 }
@@ -157,4 +149,6 @@ void RestAPI::pollEventDataFromComponents()
 {
     SseEvent newEvent("Test", "CheckCheck");
     eventQueue.push(newEvent.type, newEvent.data);
+    SseEvent newerEvent("Test2", "Lebron");
+    eventQueue.push(newerEvent.type, newerEvent.data);
 }

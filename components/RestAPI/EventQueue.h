@@ -19,6 +19,6 @@ public:
     EventQueue();
     ~EventQueue();
     void initQueue();
-    void push(const char* _type, const char* _data);
-    SseEvent pop();
+    bool push(const char* _type, const char* _data);
+    bool pop(SseEvent& event);
 };
