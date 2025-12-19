@@ -63,7 +63,7 @@ esp_err_t RestAPI::sendEvent(httpd_req_t* eventStreamRequest, std::string event,
     return response;
 }
 
-// API functions: ---
+// API file serving and declaration of api functions: ---
 void RestAPI::registerHandlers()
 {
     indexUri = {
@@ -97,6 +97,22 @@ void RestAPI::registerHandlers()
         .user_ctx = this
     };
     ESP_ERROR_CHECK(httpd_register_uri_handler(httpServer, &eventURI));
+
+    apiLedOffURI = {
+        .uri = "/api/led/off",
+        .method = HTTP_POST,
+        .handler = apiLedOff,
+        .user_ctx = this
+    };
+    ESP_ERROR_CHECK(httpd_register_uri_handler(httpServer, &apiLedOffURI));
+
+    apiLedOnURI = {
+        .uri = "/api/led/on",
+        .method = HTTP_POST,
+        .handler = apiLedOn,
+        .user_ctx = this
+    };
+    ESP_ERROR_CHECK(httpd_register_uri_handler(httpServer, &apiLedOnURI));
 }
 
 esp_err_t RestAPI::indexHandler(httpd_req_t* request) {
@@ -152,4 +168,33 @@ esp_err_t RestAPI::fileHandler(httpd_req_t *request, const char *path)
     fclose(f);
     httpd_resp_send_chunk(request, NULL, 0); 
     return ESP_OK;
+}
+
+esp_err_t RestAPI::apiLedOff(httpd_req_t* request) {
+    RestAPI* self = static_cast<RestAPI*>(request->user_ctx);
+    if(self->ledOffImpl()) {
+        return ESP_OK;
+    }
+    return ESP_FAIL;
+}
+
+esp_err_t RestAPI::apiLedOn(httpd_req_t* request) {
+    RestAPI* self = static_cast<RestAPI*>(request->user_ctx);
+    if(self->ledOnImpl()) {
+        return ESP_OK;
+    }
+    return ESP_FAIL;
+}
+
+// public interfaces / api function definition: ---
+bool RestAPI::ledOffImpl()
+{
+    ioAPI.modeLedLow();
+    return true;
+}
+
+bool RestAPI::ledOnImpl()
+{
+    ioAPI.modeLedHigh();
+    return true;
 }

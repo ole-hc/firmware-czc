@@ -29,6 +29,9 @@ private:
     httpd_uri_t scriptsURI;
     httpd_uri_t styleURI;
     httpd_uri_t eventURI;
+    httpd_uri_t apiLedOffURI;
+    httpd_uri_t apiLedOnURI;
+
     static std::vector<httpd_req_t*> eventStreamClients;
     
     void pollEventDataFromComponents();
@@ -40,9 +43,14 @@ private:
     static esp_err_t styleHandler(httpd_req_t* request);
     static esp_err_t eventsHandler(httpd_req_t* request);
     static esp_err_t fileHandler(httpd_req_t* request, const char* path);
+    static esp_err_t apiLedOff(httpd_req_t* request);
+    static esp_err_t apiLedOn(httpd_req_t* request);
 public:
     RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, NetworkStateMachine& _networkStateMachine, EventQueue& _eventQueue);
     ~RestAPI();
     void registerHandlers();
     static void pollFrontendDataTask(void* pvParameters);
+
+    bool ledOffImpl();
+    bool ledOnImpl();
 };
