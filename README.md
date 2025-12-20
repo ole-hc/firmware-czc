@@ -45,7 +45,7 @@ Wireless and Ethernet each have their own small event handlers: eth_event_handle
 Configuration data in non‑volatile storage is organized into component‑specific configuration structs, which are defined in NvsAPI.h. At present, only complete configuration structures can be saved or loaded; partial updates are not supported.
 
 ### RestAPI
-The web interface must communicate bidirectionally with the ESP32. For requests from the web interface to the ESP32, a REST API is provided. For communication in the opposite direction (ESP32 → web interface), Server‑Sent Events (SSE) are used. In this model, the browser’s JavaScript opens an HTTP connection to a REST endpoint, and the connection remains open throughout runtime.
+The web interface must communicate bidirectionally with the ESP32. For requests from the web interface to the ESP32, a REST API is provided. For communication in the opposite direction (ESP32 → web interface), Server‑Sent Events (SSE) are used. In this model, the browser’s JavaScript opens an HTTP connection to a REST endpoint, and the connection remains open throughout runtime. The implemented API and Http server support multiple Clients at the same time.
 
 Events in the stream follow the SSE format:
 
@@ -57,12 +57,14 @@ This mechanism is implemented using a global event queue. Any component can publ
 #### API functions
 This section documents all REST API endpoints that are exposed by the ESP32. Note: not every internal method in RestAPI.cpp is listed here — only the URIs that are accessible from the web interface.
 
-| URI          | Method | Description                                                                 |
-|--------------|--------|-----------------------------------------------------------------------------|
-| `/`          | GET    | Serves the main index page (HTML dashboard).                                |
-| `/scripts.js`| GET    | Provides JavaScript resources required by the web interface.                |
-| `/style.css` | GET    | Provides CSS styles for the web interface.                                  |
-| `/events`    | GET    | Opens a Server‑Sent Events (SSE) stream. Used for ESP32 → Web communication.|
+| URI              | Method | Description                                                                 |
+|------------------|--------|-----------------------------------------------------------------------------|
+| `/`              | GET    | Serves the main index page (HTML dashboard).                                |
+| `/scripts.js`    | GET    | Provides JavaScript resources required by the web interface.                |
+| `/style.css`     | GET    | Provides CSS styles for the web interface.                                  |
+| `/events`        | GET    | Opens a Server‑Sent Events (SSE) stream. Used for ESP32 → Web communication.|
+| `/api/led/on`    | POST   | Turns on mode LED on the circuit board.                                     |
+| `/api/led/on`    | POST   | Turns off mode LED on the circuit board.                                    |
 
 Notes
 
@@ -72,8 +74,11 @@ Notes
 
     SSE events are documented in the dedicated SSE Events section.
 
-#### SSE events
-Currently there are no implemented events.
+#### SSE events / EventQueue
+Server‑sent events are handled through the EventQueue class. This class provides a thread‑safe queue that collects events generated during the updateFrontendTask. Each event is stored internally as an SseEvent structure.
+Other components can also push events into the queue, as long as they have access to the already‑initialized queue instance.
+During each cycle of updateFrontendTask, the system first gathers all relevant data from the ESP. After polling is complete, the task sends all queued events to every connected frontend client.
+The following section documents all event types currently supported by the frontend.
 
 ### Cc chip controller
 This class provides the high level API of the Texas instruments CC2652P4 used for the ZigBee / Thread communication. 
