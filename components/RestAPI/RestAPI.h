@@ -21,7 +21,7 @@ private:
     FilesystemAPI& filesystemAPI;
     NvsAPI& nvsAPI;
     IoAPI& ioAPI;
-    // SystemManager& systemManager;
+    SystemManager& systemManager;
     NetworkStateMachine& networkStateMachine;
     EventQueue& eventQueue;
 
@@ -46,7 +46,7 @@ private:
     static esp_err_t apiLedOff(httpd_req_t* request);
     static esp_err_t apiLedOn(httpd_req_t* request);
 public:
-    RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, NetworkStateMachine& _networkStateMachine, EventQueue& _eventQueue);
+    RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, SystemManager& _systemManager, NetworkStateMachine& _networkStateMachine, EventQueue& _eventQueue);
     ~RestAPI();
     void registerHandlers();
     static void pollFrontendDataTask(void* pvParameters);

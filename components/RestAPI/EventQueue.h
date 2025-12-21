@@ -9,7 +9,6 @@ struct SseEvent
     char data[32];
 };
 
-
 class EventQueue
 {
 private:

@@ -31,13 +31,20 @@ extern "C" void app_main(){
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     FilesystemAPI filesystemAPI;
+    
     NvsAPI nvsAPI;
-    IoAPI ioAPI;
-    EthernetAPI ethernetAPI;
-    WirelessAPI wirelessAPI("czc-codm", "codmcodm", 2);
-    NetworkStateMachine networkStateMachine(ethernetAPI, wirelessAPI, nvsAPI);
-
     nvsAPI.initNvs();
+    
+    IoAPI ioAPI;
+    
+    SystemManager systemManager;
+    //systemManager.initSystemManager();
+
+    EthernetAPI ethernetAPI;
+    
+    WirelessAPI wirelessAPI("czc-codm", "codmcodm", 2);
+    
+    NetworkStateMachine networkStateMachine(ethernetAPI, wirelessAPI, nvsAPI);
     networkStateMachine.initNetworkStateMachine();
 
     HttpServer httpServer;
@@ -46,7 +53,7 @@ extern "C" void app_main(){
     EventQueue eventQueue;
     eventQueue.initQueue();
 
-    RestAPI restAPI(httpServer.getHandle(), filesystemAPI, nvsAPI, ioAPI, networkStateMachine, eventQueue);
+    RestAPI restAPI(httpServer.getHandle(), filesystemAPI, nvsAPI, ioAPI, systemManager, networkStateMachine, eventQueue);
     restAPI.registerHandlers();
     TaskHandle_t updateFrontendTask = NULL; 
     xTaskCreate(restAPI.pollFrontendDataTask, "SendEventstreamDataToFrontend", 4096, &restAPI, 5, &updateFrontendTask);
@@ -66,6 +73,7 @@ extern "C" void app_main(){
     nvsAPI.closeNvs();
     networkStateMachine.closeNetworkStateMachine();
     httpServer.closeHttpServer();
+    //systemManager.closeSystemManager();
     if(updateFrontendTask != NULL) {
         vTaskDelete(updateFrontendTask);
     }
@@ -80,3 +88,4 @@ extern "C" void app_main(){
 //
 // Next step:
 // Http server
+// own SseEvent class 

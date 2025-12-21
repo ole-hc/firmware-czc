@@ -4,4 +4,5 @@ idf_component_register(
         "SystemManager.cpp"
     INCLUDE_DIRS "."
     REQUIRES esp_driver_gpio
+    REQUIRES esp_driver_tsens
 )

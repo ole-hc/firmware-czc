@@ -3,8 +3,8 @@
 const char* RestAPI::TAG = "RestAPI";
 std::vector<httpd_req_t*> RestAPI::eventStreamClients;
 
-RestAPI::RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, NetworkStateMachine& _networkStateMachine, EventQueue& _eventQueue)
-    :httpServer(_httpServer), filesystemAPI(_filesystemAPI), nvsAPI(_nvsAPI), ioAPI(_ioAPI), networkStateMachine(_networkStateMachine), eventQueue(_eventQueue)
+RestAPI::RestAPI(httpd_handle_t _httpServer, FilesystemAPI& _filesystemAPI, NvsAPI& _nvsAPI, IoAPI& _ioAPI, SystemManager& _systemManager, NetworkStateMachine& _networkStateMachine, EventQueue& _eventQueue)
+    :httpServer(_httpServer), filesystemAPI(_filesystemAPI), nvsAPI(_nvsAPI), ioAPI(_ioAPI), systemManager(_systemManager) , networkStateMachine(_networkStateMachine), eventQueue(_eventQueue)
 {
 }
 
@@ -28,8 +28,6 @@ void RestAPI::pollEventDataFromComponents()
 {
     SseEvent newEvent("Test", "CheckCheck");
     eventQueue.push(newEvent.type, newEvent.data);
-    SseEvent newerEvent("Test2", "Lebron");
-    eventQueue.push(newerEvent.type, newerEvent.data);
 }
 
 
