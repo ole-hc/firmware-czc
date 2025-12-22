@@ -8,13 +8,13 @@ IoAPI::IoAPI()
 
 IoAPI::~IoAPI()
 {
-    initLed(MODE_LED_PIN);
-    initLed(POWER_LED_PIN);
-    initButton(BUTTON_PIN);
 }
 
 void IoAPI::initIo()
 {
+    initLed(MODE_LED_PIN);
+    initLed(POWER_LED_PIN);
+    initButton(BUTTON_PIN);
 }
 
 void IoAPI::initLed(uint8_t gpio)
