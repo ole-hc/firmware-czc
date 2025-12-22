@@ -17,15 +17,6 @@
 #include "RestAPI.h"
 #include "EventQueue.h"
 
- /*
-struct hardwareConfig {
-    .txPin = 4, 
-    .rxPin = 36, 
-    .rstPin = 16, 
-    .bslPin = 32
-};
-*/
-
 extern "C" void app_main(){
     // --- setup ---
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -36,6 +27,7 @@ extern "C" void app_main(){
     nvsAPI.initNvs();
     
     IoAPI ioAPI;
+    ioAPI.initIo();
     
     SystemManager systemManager;
     //systemManager.initSystemManager();
