@@ -4,12 +4,16 @@ const char* IoAPI::TAG = "Input/Output";
 
 IoAPI::IoAPI()
 {
-    initLed(ioToGpio.modeLed);
-    initLed(ioToGpio.powerLed);
-    initButton(ioToGpio.button);
 }
 
 IoAPI::~IoAPI()
+{
+    initLed(MODE_LED_PIN);
+    initLed(POWER_LED_PIN);
+    initButton(BUTTON_PIN);
+}
+
+void IoAPI::initIo()
 {
 }
 
@@ -39,20 +43,20 @@ void IoAPI::initButton(uint8_t gpio)
 
 void IoAPI::modeLedHigh()
 {
-    gpio_set_level((gpio_num_t)ioToGpio.modeLed, 1);
+    gpio_set_level((gpio_num_t)MODE_LED_PIN, 1);
 }
 
 void IoAPI::modeLedLow()
 {
-    gpio_set_level((gpio_num_t)ioToGpio.modeLed, 0);
+    gpio_set_level((gpio_num_t)MODE_LED_PIN, 0);
 }
 
 void IoAPI::powerLedHigh()
 {
-    gpio_set_level((gpio_num_t)ioToGpio.powerLed, 1);
+    gpio_set_level((gpio_num_t)POWER_LED_PIN, 1);
 }
 
 void IoAPI::powerLedLow()
 {
-    gpio_set_level((gpio_num_t)ioToGpio.powerLed, 0);
+    gpio_set_level((gpio_num_t)POWER_LED_PIN, 0);
 }

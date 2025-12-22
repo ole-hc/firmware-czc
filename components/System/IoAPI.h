@@ -13,22 +13,20 @@
     .ledPwrPlr = 1
 */
 
-struct ioGpio {
-    uint8_t button = 35;
-    uint8_t modeLed = 12;
-    uint8_t powerLed = 14;
-};
+#define BUTTON_PIN 35
+#define MODE_LED_PIN 12
+#define POWER_LED_PIN 14
 
 class IoAPI
 {
 private:
-    ioGpio ioToGpio;
     static const char* TAG;
+    void initLed(uint8_t gpio);
+    void initButton(uint8_t gpio);
 public:
     IoAPI();
     ~IoAPI();
-    void initLed(uint8_t gpio);
-    void initButton(uint8_t gpio);
+    void initIo();
     void modeLedHigh();
     void modeLedLow();
     void powerLedHigh();
