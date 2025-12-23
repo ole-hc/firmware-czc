@@ -44,20 +44,21 @@ bool NvsAPI::saveNetworkConfigToNvs(const NetworkConfig &networkConfig)
     return true;
 }
 
-// maybe also boolean?
+// maybe also boolean? and refactor. Function flow not great at all
 void NvsAPI::getNetworkConfigFromNvs(NetworkConfig &networkConfig)
 {
     nvs_handle_t handle;
-    if (nvs_open(networkConfigNamespace, NVS_READONLY, &handle) != ESP_OK) ESP_LOGW(TAG, "Error while opening file");
+    esp_err_t responseOpen = nvs_open(networkConfigNamespace, NVS_READONLY, &handle);
+    if(responseOpen != ESP_OK) {
+        ESP_LOGW(TAG, "Error while opening Nvs namespace %s,: %s", networkConfigNamespace, esp_err_to_name(responseOpen));
+    }
     
     size_t size = sizeof(networkConfig);
-    esp_err_t ret = nvs_get_blob(handle, configNamespace, &networkConfig, &size);
+    esp_err_t responseGet = nvs_get_blob(handle, configNamespace, &networkConfig, &size);
     nvs_close(handle);
 
-    if(ret == ESP_ERR_NVS_NOT_FOUND) {
-        ESP_LOGI(TAG, "Networkconfig not saved until now, using default!");
+    if(responseGet != ESP_OK) {
+        ESP_LOGI(TAG, "Networkconfig not saved until now, using default, %s", esp_err_to_name(responseGet));
         networkConfig.wifiConfigured = false;
     }
-
-    if(ret != ESP_OK && ret != ESP_ERR_NVS_NOT_FOUND) ESP_LOGW(TAG, "Error while reading networkConfig from Nvs");
 }

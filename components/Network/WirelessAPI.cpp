@@ -52,6 +52,11 @@ void WirelessAPI::closeAccessPoint()
 
 void WirelessAPI::initWifi()
 {
+    if(activeWirelessMode == ActiveWirelessMode::WIFI) {
+        ESP_LOGW(TAG, "Wifi was allready started");
+        return;
+    }
+
     esp_netif_create_default_wifi_sta();
     
     wifi_init_config_t initWifiConfig = WIFI_INIT_CONFIG_DEFAULT();

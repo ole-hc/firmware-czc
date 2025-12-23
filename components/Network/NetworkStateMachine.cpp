@@ -18,6 +18,7 @@ void NetworkStateMachine::initNetworkStateMachine()
     ethernetAPI.initEthernet();
     ESP_ERROR_CHECK(esp_netif_init());
     if(networkConfig.wifiConfigured) {
+        ESP_LOGW(TAG, "Wifi was previously configured, loading config from NVS and starting wifi");
         wirelessAPI.setWirelessConfig(networkConfig.ssid, networkConfig.password); // if wifi was previously configured, configure accordingly and start wifi 
         wirelessAPI.initWifi();
     }
