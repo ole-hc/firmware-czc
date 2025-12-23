@@ -65,7 +65,6 @@ void CcFrameAPI::initBslAndRst()
     gpio_set_level((gpio_num_t)RST_PIN, 1);
 }
 
-// --- Highlevel ---
 bool CcFrameAPI::setCcBootloaderMode()
 {
     if(inBootloaderMode == false) {
@@ -88,7 +87,6 @@ bool CcFrameAPI::detectChipInfo()
     return true;
 }
 
-// --- Lowlevel --- 
 void CcFrameAPI::setupCcChipBootloaderMode()
 {
     gpio_set_level((gpio_num_t)BSL_PIN, 0);
@@ -144,6 +142,156 @@ void CcFrameAPI::sendNACK()
     uart_write_bytes(ccUartNum, (const char*)&cmd2, sizeof(cmd2));
 }
 
+bool CcFrameAPI::eraseFlash()
+{
+    const uint8_t cmd = 0x2C;
+    const uint8_t length = 3;
+
+    uart_write_bytes(ccUartNum, (const char*)&length, sizeof(length));
+    uart_write_bytes(ccUartNum, (const char*)&cmd, sizeof(cmd));
+    uart_write_bytes(ccUartNum, (const char*)&cmd, sizeof(cmd));
+
+    if(waitForAck(50)) {
+        if(checkLastCmd()) {
+            ESP_LOGD(TAG, "Successfully send eraseFlash cmd to CC");
+            return true;
+        }
+    }
+
+    ESP_LOGW(TAG, "Error sending eraseFlash cmd to CC");
+    return false;
+}
+
+bool CcFrameAPI::cmdDownload(uint32_t address, uint32_t size)
+{
+    const uint8_t cmd = 0x21;
+    const uint8_t length = 11;
+
+    if((size % 4) != 0) {
+        ESP_LOGW(TAG, "Invalid data size: %i. Size must be a multiple of 4.", size);
+        return false;
+    }
+
+    uint8_t addressBytes[4];
+    encodeAddress(address, addressBytes);
+
+    uint8_t sizeBytes[4];
+    encodeAddress(size, sizeBytes);
+
+    uint8_t checksum = calculateChecksum(cmd, address, size);
+
+    uart_write_bytes(ccUartNum, (const char*)&length, sizeof(length));
+    uart_write_bytes(ccUartNum, (const char*)&checksum, sizeof(checksum));
+    uart_write_bytes(ccUartNum, (const char*)&cmd, sizeof(cmd));
+
+    uart_write_bytes(ccUartNum, (const char*)&addressBytes[0], sizeof(addressBytes[0]));
+    uart_write_bytes(ccUartNum, (const char*)&addressBytes[1], sizeof(addressBytes[1]));
+    uart_write_bytes(ccUartNum, (const char*)&addressBytes[2], sizeof(addressBytes[2]));
+    uart_write_bytes(ccUartNum, (const char*)&addressBytes[3], sizeof(addressBytes[3]));
+
+    uart_write_bytes(ccUartNum, (const char*)&sizeBytes[0], sizeof(sizeBytes[0]));
+    uart_write_bytes(ccUartNum, (const char*)&sizeBytes[1], sizeof(sizeBytes[1]));
+    uart_write_bytes(ccUartNum, (const char*)&sizeBytes[2], sizeof(sizeBytes[2]));
+    uart_write_bytes(ccUartNum, (const char*)&sizeBytes[3], sizeof(sizeBytes[3]));
+
+    if(waitForAck(50)) {
+        if(checkLastCmd()) {
+            ESP_LOGD(TAG, "Successfully send cmdDownload to CC");
+            return true;
+        }
+    }
+
+    ESP_LOGW(TAG, "Error sending downloadCmd to CC");
+    return false;
+}
+
+bool CcFrameAPI::cmdSendData(std::vector<uint8_t> data)
+{
+    const uint8_t cmd = 0x24;
+    const uint8_t maxDataSize = 252;
+    uint8_t dataSize = data.size();
+
+    if(dataSize > maxDataSize) {
+        ESP_LOGW(TAG, "Data size to large: %i. Maximum allowed ist 252 Bytes.", dataSize);
+        return false;
+    }
+
+    uint8_t length = dataSize + 3;
+    uint8_t checksum = cmd;
+    for (size_t i = 0; i < dataSize; i++)
+    {
+        checksum += data.at(i);
+    }
+    checksum &= 0xFF;
+    
+    uart_write_bytes(ccUartNum, (const char*)&length, sizeof(length));
+    uart_write_bytes(ccUartNum, (const char*)&checksum, sizeof(checksum));
+    uart_write_bytes(ccUartNum, (const char*)&cmd, sizeof(cmd));
+    for (size_t i = 0; i < dataSize; i++)
+    {
+        uart_write_bytes(ccUartNum, (const char*)&data.at(i), sizeof(data.at(i)));
+    }
+
+    if(waitForAck(50)) {
+        if(checkLastCmd()) {
+            ESP_LOGD(TAG, "Successfully send data to CC");
+            return true;
+        }
+    }
+
+    ESP_LOGW(TAG, "Error while sending data to CC");
+    return false;
+}
+
+bool CcFrameAPI::cmdPing()
+{
+    ESP_LOGD(TAG, "Pinging CC...");
+    const uint8_t cmd = 0x20;
+    uart_write_bytes(ccUartNum, (const char*)&cmd, sizeof(cmd));
+    return waitForAck(50);
+}
+
+bool CcFrameAPI::cmdSetLedState(bool ledState)
+{
+    uint8_t zigLedCmd[7] = {CMD_FRAME_START, 0x02, 0x27, 0x0A, 0x01, 0, 0};
+    const uint8_t zigLedResponse[6] = {CMD_FRAME_START, 0x01, 0x67, 0x0A, 0x00, 0x6C};
+
+    uart_flush(ccUartNum);
+    if(ledState == 0) {
+        zigLedCmd[5] = 0x01;
+        zigLedCmd[6] = 0x2F;
+    }
+    else {
+        zigLedCmd[5] = 0x00;
+        zigLedCmd[6] = 0x2E;
+    }
+    uart_write_bytes(ccUartNum, &zigLedCmd, sizeof(zigLedCmd));
+    uart_flush(ccUartNum);
+    vTaskDelay(pdMS_TO_TICKS(400));
+    for (size_t i = 0; i < 5; i++)
+    {
+        uint8_t readByte;
+        uart_read_bytes(ccUartNum, &readByte, 1, 50);
+        if(readByte != CMD_FRAME_START) {
+            ESP_LOGW(TAG, "Error reading CC after LED cmd was send");
+            uart_read_bytes(ccUartNum, &readByte, 1, 50);
+            return false;
+        }
+        else {
+            for (size_t j = 0; j < 4; j++)
+            {
+                uart_read_bytes(ccUartNum, &readByte, 1, 50);
+                if(readByte != zigLedResponse[j]) {
+                    ESP_LOGW(TAG, "Answer from LED cmd wrong");
+                    return false;
+                }
+            }
+        }
+    }
+    
+    return true;
+}
+
 uint32_t CcFrameAPI::cmdGetChipId()
 {
     const uint8_t cmd = 0x28;
@@ -178,7 +326,7 @@ uint32_t CcFrameAPI::cmdGetChipId()
 bool CcFrameAPI::checkLastCmd()
 {
     std::vector<uint8_t> status = cmdGetStatus();
-    if(status == {}) {
+    if(status.empty()) {
         ESP_LOGW(TAG, "No response from target on status request, did you disable the bootloader?");
         return false;
     }
@@ -189,13 +337,47 @@ bool CcFrameAPI::checkLastCmd()
     }
     
     char* statusString = getStatusString(cmdReturn);
-    if(statusString == "Unknown") {
+    if(strcmp(statusString, "Unknown")) { 
         ESP_LOGW(TAG, "Unrecognized status returned: 0x%d", cmdReturn);
     }
     else {
         ESP_LOGW(TAG, "Target returned: 0x%d, %s", cmdReturn, statusString);
     }
     return false;
+}
+
+std::vector<uint8_t> CcFrameAPI::cmdMemRead(uint32_t address)
+{
+    const uint8_t cmd = 0x2A;
+    const uint8_t length = 9; 
+
+    uint8_t addressBytes[4];
+    encodeAddress(address, addressBytes);
+    uint8_t checksum = calculateChecksum(cmd, address, 2);
+    uint8_t endBytes = 1;
+
+    uart_write_bytes(ccUartNum, (const char*)&length, sizeof(length));
+    uart_write_bytes(ccUartNum, (const char*)&checksum, sizeof(checksum));
+    uart_write_bytes(ccUartNum, (const char*)&cmd, sizeof(cmd));
+
+    uart_write_bytes(ccUartNum, (const char*)&addressBytes[0], sizeof(addressBytes[0]));
+    uart_write_bytes(ccUartNum, (const char*)&addressBytes[1], sizeof(addressBytes[1]));
+    uart_write_bytes(ccUartNum, (const char*)&addressBytes[2], sizeof(addressBytes[2]));
+    uart_write_bytes(ccUartNum, (const char*)&addressBytes[3], sizeof(addressBytes[3]));
+
+    uart_write_bytes(ccUartNum, (const char*)&endBytes, sizeof(endBytes));
+    uart_write_bytes(ccUartNum, (const char*)&endBytes, sizeof(endBytes));
+
+    if(waitForAck(50)) {
+        std::vector<uint8_t> memData = receivePacket();
+        if(checkLastCmd()) {
+            ESP_LOGD(TAG, "Successfully read CC memory");
+            return memData;
+        }
+    }
+
+    ESP_LOGW(TAG, "Error reading CC memory!");
+    return {};
 }
 
 std::vector<uint8_t> CcFrameAPI::cmdGetStatus()
@@ -297,4 +479,44 @@ bool CcFrameAPI::waitForAck(uint16_t timeoutMs)
     }
     ESP_LOGW(TAG, "Timeout waiting for ACK/NACK");
     return false;
+}
+
+void CcFrameAPI::encodeAddress(uint32_t address, uint8_t encodedAddress[4])
+{
+    encodedAddress[3] = (uint8_t)((address >> 0) & 0xFF);
+    encodedAddress[2] = (uint8_t)((address >> 8) & 0xFF);
+    encodedAddress[1] = (uint8_t)((address >> 16) & 0xFF);
+    encodedAddress[0] = (uint8_t)((address >> 24) & 0xFF);
+}
+
+uint8_t CcFrameAPI::calculateChecksum(uint8_t cmd, uint32_t address, uint32_t size)
+{
+    uint8_t addressBytes[4];
+    encodeAddress(address, addressBytes);
+    uint8_t sizeBytes[4];
+    encodeAddress(size, sizeBytes);
+
+    uint32_t checksum = 0;
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        checksum += addressBytes[i];
+        checksum += sizeBytes[i];
+    }
+    checksum += cmd;
+    
+    return (uint8_t)(checksum & 0xFF);
+}
+
+void CcFrameAPI::checkFwVersion()
+{
+    const uint8_t zbVerLen = 11;
+    const uint8_t cmdSysVersion[5] = {CMD_FRAME_START, 0x00, 0x21, 0x02, 0x23};
+
+    uart_flush(ccUartNum);
+    uart_write_bytes(ccUartNum, (const char*)&cmdSysVersion, sizeof(cmdSysVersion));
+    uart_flush(ccUartNum);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    uint8_t zbVersionBuffer[zbVerLen];
+    uart_read_bytes(ccUartNum, &zbVersionBuffer, zbVerLen, 50);
 }

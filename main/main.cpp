@@ -11,7 +11,7 @@
 #include "NvsAPI.h"
 #include "IoAPI.h"
 #include "CcFrameAPI.h"
-#include "CcZnpAPI.h"
+#include "CcHighlevelAPI.h"
 #include "NetworkStateMachine.h"
 #include "HttpServer.h"
 #include "RestAPI.h"
