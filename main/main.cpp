@@ -50,7 +50,11 @@ extern "C" void app_main(){
     TaskHandle_t updateFrontendTask = NULL; 
     xTaskCreate(restAPI.pollFrontendDataTask, "SendEventstreamDataToFrontend", 4096, &restAPI, 5, &updateFrontendTask);
 
-    esp_log_level_set("*", ESP_LOG_INFO); 
+    CcFrameAPI ccFrameAPI;
+    ccFrameAPI.initCcUart();
+
+    esp_log_level_set("*", ESP_LOG_INFO);
+    // esp_log_level_set("*", ESP_LOG_DEBUG); 
 
     // --- program --- 
     ioAPI.powerLedHigh();

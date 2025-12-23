@@ -4,8 +4,8 @@
 
 #include "esp_log.h"
 
-#define TX_PIN 34
-#define RX_PIN 4
+#define TX_PIN 4
+#define RX_PIN 36
 #define RST_PIN 16
 #define BSL_PIN 32
 
@@ -20,7 +20,8 @@ private:
     QueueHandle_t ccUartQueue;
     uart_port_t ccUartNum;
     
-    void initBsl();
+    void initBslAndRst();
+    void setupCcChip();
     bool sendSynch();
     bool waitForAck(uint16_t timeoutMs);
 public:
