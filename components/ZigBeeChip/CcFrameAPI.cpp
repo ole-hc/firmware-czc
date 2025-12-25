@@ -356,7 +356,7 @@ std::vector<uint8_t> CcFrameAPI::cmdGetStatus()
     return {};
 }
 
-bool CcFrameAPI::cmdCheckFwVersion(ccInfo& chip)
+bool CcFrameAPI::cmdCheckFwVersion(CcInfo& chip)
 {
     if(inBootloaderMode == true) {
         ESP_LOGD(TAG, "[cmdCheckFwVersion] Switches out of bootloader mode -> restarted CC");
@@ -388,7 +388,6 @@ bool CcFrameAPI::cmdCheckFwVersion(ccInfo& chip)
     }
     uart_flush(ccUartNum);
 
-    chip.fwRevision = 0;
     ESP_LOGW(TAG, "Error reading Fw Version from CC!");
     return false;
 }

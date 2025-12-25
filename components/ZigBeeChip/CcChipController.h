@@ -5,8 +5,10 @@
 class CcChipController
 {
 private:
-static const char* TAG;
-CcFrameAPI& ccFrameAPI;
+    static const char* TAG;
+    CcFrameAPI& ccFrameAPI;
+    CcInfo ccInfo;
+
 public:
     CcChipController(CcFrameAPI& _ccFrameAPI);
     ~CcChipController();

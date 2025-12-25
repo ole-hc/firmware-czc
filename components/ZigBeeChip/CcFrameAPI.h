@@ -16,7 +16,7 @@
 #define COMMAND_RET_SUCCESS 0x40
 #define CMD_FRAME_START 0xFE
 
-struct ccInfo {
+struct CcInfo {
     uint32_t fwRevision;
     uint32_t flashSize;
     uint32_t ramSize;
@@ -67,5 +67,5 @@ public:
     uint32_t cmdGetChipId();
     std::vector<uint8_t> cmdMemRead(uint32_t address);
     std::vector<uint8_t> cmdGetStatus();
-    bool cmdCheckFwVersion(ccInfo& chip);
+    bool cmdCheckFwVersion(CcInfo& chip);
 };

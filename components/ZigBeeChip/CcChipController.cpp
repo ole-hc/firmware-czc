@@ -13,7 +13,7 @@
 const char* CcChipController::TAG = "CcChipController";
 
 CcChipController::CcChipController(CcFrameAPI& _ccFrameAPI)
-    :ccFrameAPI(_ccFrameAPI)
+    :ccFrameAPI(_ccFrameAPI), ccInfo()
 {
 }
 
@@ -35,5 +35,6 @@ void CcChipController::testFunction()
 {
     ESP_LOGW(TAG, "Called test function");
     ccFrameAPI.setCcBootloaderMode();
-    ccFrameAPI.cmdCheckFwVersion();
+    ccFrameAPI.cmdCheckFwVersion(ccInfo);
+    ESP_LOGW(TAG, "Fw revision of CC chip: %i", ccInfo.fwRevision);
 }
