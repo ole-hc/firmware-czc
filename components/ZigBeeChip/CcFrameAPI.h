@@ -16,6 +16,17 @@
 #define COMMAND_RET_SUCCESS 0x40
 #define CMD_FRAME_START 0xFE
 
+struct ccInfo {
+    uint32_t fwRevision;
+    uint32_t flashSize;
+    uint32_t ramSize;
+    uint8_t maintrel;
+    uint8_t minorrel;
+    uint8_t majorrel;
+    uint8_t product;
+    uint8_t transportrev;
+};
+
 class CcFrameAPI
 {
 private:
@@ -24,36 +35,37 @@ private:
     QueueHandle_t ccUartQueue;
     uart_port_t ccUartNum;
     bool inBootloaderMode;
-    
-    void initBslAndRst();
-    bool setCcBootloaderMode();
-    bool detectChipInfo();
-    void setupCcChipBootloaderMode();
-    void restartCc();
-    void routerRejoin();
-    bool sendSynch();
-    void sendACK();
-    void sendNACK();
-    bool eraseFlash();
-    bool cmdDownload(uint32_t address, uint32_t size);
-    bool cmdSendData(std::vector<uint8_t> data);
-    bool cmdPing();
-    bool cmdSetLedState(bool ledState);
-    uint32_t cmdGetChipId();
-    bool checkLastCmd();
-    std::vector<uint8_t> cmdMemRead(uint32_t address);
-    std::vector<uint8_t> cmdGetStatus();
+        
     std::vector<uint8_t> receivePacket();
     char* getStatusString(uint8_t statusCode);
     bool waitForAck(uint16_t timeoutMs);
     void encodeAddress(uint32_t address, uint8_t encodedAddress[4]);
     uint8_t calculateChecksum(uint8_t cmd, uint32_t address, uint32_t size);
-
-    void checkFwVersion();
+    bool checkLastCmd();
+    void setupCcChipBootloaderMode();
+    bool sendSynch();
+    void sendACK();
+    void sendNACK();
 
 public:
     CcFrameAPI();
     ~CcFrameAPI();
+
     void initCcUart();
-    void closeCcUart();
+    void initBslAndRst();
+
+    bool setCcBootloaderMode();
+    bool detectChipInfo();
+
+    void restartCc();
+    void routerRejoin();
+
+    bool cmdEraseFlash();
+    bool cmdDownload(uint32_t address, uint32_t size);
+    bool cmdSendData(std::vector<uint8_t> data);
+    bool cmdSetLedState(bool ledState);
+    uint32_t cmdGetChipId();
+    std::vector<uint8_t> cmdMemRead(uint32_t address);
+    std::vector<uint8_t> cmdGetStatus();
+    bool cmdCheckFwVersion(ccInfo& chip);
 };

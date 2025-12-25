@@ -11,14 +11,13 @@
 #include "NvsAPI.h"
 #include "IoAPI.h"
 #include "CcFrameAPI.h"
-#include "CcHighlevelAPI.h"
+#include "CcChipController.h"
 #include "NetworkStateMachine.h"
 #include "HttpServer.h"
 #include "RestAPI.h"
 #include "EventQueue.h"
 
 extern "C" void app_main(){
-    // --- setup ---
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     FilesystemAPI filesystemAPI;
@@ -51,12 +50,13 @@ extern "C" void app_main(){
     xTaskCreate(restAPI.pollFrontendDataTask, "SendEventstreamDataToFrontend", 4096, &restAPI, 5, &updateFrontendTask);
 
     CcFrameAPI ccFrameAPI;
-    ccFrameAPI.initCcUart();
+    CcChipController ccChipController(ccFrameAPI);
+    ccChipController.initCc();
+    ccChipController.testFunction();
 
     esp_log_level_set("*", ESP_LOG_INFO);
     // esp_log_level_set("*", ESP_LOG_DEBUG); 
 
-    // --- program --- 
     ioAPI.powerLedHigh();
     ioAPI.modeLedHigh();
 
@@ -65,7 +65,6 @@ extern "C" void app_main(){
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    // --- close --- 
     nvsAPI.closeNvs();
     networkStateMachine.closeNetworkStateMachine();
     httpServer.closeHttpServer();
@@ -83,5 +82,3 @@ extern "C" void app_main(){
 // Put object init from constructor to initialisation method (Filesystem, nvs, ioApi)      
 //
 // Next step:
-// Http server
-// own SseEvent class 

@@ -11,7 +11,6 @@ CcFrameAPI::~CcFrameAPI()
 {
 }
 
-// --- init --- 
 void CcFrameAPI::initCcUart()
 {
     ESP_ERROR_CHECK(uart_driver_install(ccUartNum, ccUartBufferSize, ccUartBufferSize, 10, &ccUartQueue, 0));
@@ -25,19 +24,7 @@ void CcFrameAPI::initCcUart()
     };
     ESP_ERROR_CHECK(uart_param_config(ccUartNum, &ccUartConfig));
     ESP_ERROR_CHECK(uart_set_pin(ccUartNum, TX_PIN, RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-    initBslAndRst();
-
-    if(setCcBootloaderMode() == false) {
-        ESP_LOGW(TAG, "No begin answer from the CC chip!");
-        return;
-    }
-    restartCc();
-
-    ESP_LOGI(TAG, "CC Uart communication setup successfully, rebooting CC");
-}
-
-void CcFrameAPI::closeCcUart()
-{
+    ESP_LOGD(TAG, "CC Uart communication setup successfully");
 }
 
 void CcFrameAPI::initBslAndRst()
@@ -63,6 +50,7 @@ void CcFrameAPI::initBslAndRst()
     // Both are pulled up and low active 
     gpio_set_level((gpio_num_t)BSL_PIN, 1);
     gpio_set_level((gpio_num_t)RST_PIN, 1);
+    ESP_LOGD(TAG, "CC GPIO setup complete");
 }
 
 bool CcFrameAPI::setCcBootloaderMode()
@@ -70,7 +58,7 @@ bool CcFrameAPI::setCcBootloaderMode()
     if(inBootloaderMode == false) {
         setupCcChipBootloaderMode();
         if(sendSynch() == false) {
-            ESP_LOGD(TAG, "Error setting up Bootloader mode");
+            ESP_LOGW(TAG, "Error setting up Bootloader mode");
             return false;
         }
     }
@@ -83,7 +71,6 @@ bool CcFrameAPI::detectChipInfo()
         ESP_LOGW(TAG, "Error setting up bootloader mode in detectChipInfo");
         return false;
     }
-
     return true;
 }
 
@@ -114,6 +101,7 @@ void CcFrameAPI::routerRejoin()
     vTaskDelay(pdMS_TO_TICKS(500));
 }
 
+// ping method 
 bool CcFrameAPI::sendSynch()
 {
     const uint8_t cmd = 0x55;
@@ -142,7 +130,7 @@ void CcFrameAPI::sendNACK()
     uart_write_bytes(ccUartNum, (const char*)&cmd2, sizeof(cmd2));
 }
 
-bool CcFrameAPI::eraseFlash()
+bool CcFrameAPI::cmdEraseFlash()
 {
     const uint8_t cmd = 0x2C;
     const uint8_t length = 3;
@@ -243,14 +231,6 @@ bool CcFrameAPI::cmdSendData(std::vector<uint8_t> data)
     return false;
 }
 
-bool CcFrameAPI::cmdPing()
-{
-    ESP_LOGD(TAG, "Pinging CC...");
-    const uint8_t cmd = 0x20;
-    uart_write_bytes(ccUartNum, (const char*)&cmd, sizeof(cmd));
-    return waitForAck(50);
-}
-
 bool CcFrameAPI::cmdSetLedState(bool ledState)
 {
     uint8_t zigLedCmd[7] = {CMD_FRAME_START, 0x02, 0x27, 0x0A, 0x01, 0, 0};
@@ -323,29 +303,6 @@ uint32_t CcFrameAPI::cmdGetChipId()
     return uint32_t(0);
 }
 
-bool CcFrameAPI::checkLastCmd()
-{
-    std::vector<uint8_t> status = cmdGetStatus();
-    if(status.empty()) {
-        ESP_LOGW(TAG, "No response from target on status request, did you disable the bootloader?");
-        return false;
-    }
-
-    uint8_t cmdReturn = status.at(0);
-    if(cmdReturn == COMMAND_RET_SUCCESS) {
-        return true;
-    }
-    
-    char* statusString = getStatusString(cmdReturn);
-    if(strcmp(statusString, "Unknown")) { 
-        ESP_LOGW(TAG, "Unrecognized status returned: 0x%d", cmdReturn);
-    }
-    else {
-        ESP_LOGW(TAG, "Target returned: 0x%d, %s", cmdReturn, statusString);
-    }
-    return false;
-}
-
 std::vector<uint8_t> CcFrameAPI::cmdMemRead(uint32_t address)
 {
     const uint8_t cmd = 0x2A;
@@ -397,6 +354,43 @@ std::vector<uint8_t> CcFrameAPI::cmdGetStatus()
 
     ESP_LOGW(TAG, "Error cmdGetStatus");
     return {};
+}
+
+bool CcFrameAPI::cmdCheckFwVersion(ccInfo& chip)
+{
+    if(inBootloaderMode == true) {
+        ESP_LOGD(TAG, "[cmdCheckFwVersion] Switches out of bootloader mode -> restarted CC");
+        restartCc();
+        vTaskDelay(pdTICKS_TO_MS(50));
+    }
+
+    const uint8_t zbVerLen = 11;
+    const uint8_t cmdSysVersion[5] = {CMD_FRAME_START, 0x00, 0x21, 0x02, 0x23};
+
+    uart_flush(ccUartNum);
+    int response = uart_write_bytes(ccUartNum, (const char*)&cmdSysVersion, sizeof(cmdSysVersion));
+    ESP_LOGD(TAG, "[cmdCheckFwVersion] Return of send: %i", response);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    uint8_t zbVersionBuffer[zbVerLen];
+    int readLength = uart_read_bytes(ccUartNum, &zbVersionBuffer, zbVerLen, 50);
+    ESP_LOGD(TAG, "[cmdCheckFwVersion] Return of read: %i", readLength);
+
+    if(readLength > 0) {
+        chip.fwRevision = zbVersionBuffer[5] | (zbVersionBuffer[6] << 8) | (zbVersionBuffer[7] << 16) | (zbVersionBuffer[8] << 24);
+        chip.maintrel = zbVersionBuffer[4];
+        chip.minorrel = zbVersionBuffer[3];
+        chip.majorrel = zbVersionBuffer[2];
+        chip.product = zbVersionBuffer[1];
+        chip.transportrev = zbVersionBuffer[0];
+        ESP_LOGI(TAG, "Successfully read Fw Version of the CC, Message size: %i", readLength);
+        return true;
+    }
+    uart_flush(ccUartNum);
+
+    chip.fwRevision = 0;
+    ESP_LOGW(TAG, "Error reading Fw Version from CC!");
+    return false;
 }
 
 std::vector<uint8_t> CcFrameAPI::receivePacket()
@@ -463,10 +457,10 @@ bool CcFrameAPI::waitForAck(uint16_t timeoutMs)
         length = uart_read_bytes(ccUartNum, &byte, 1, 100);
 
         if(length > 0) {
-            ESP_LOGD(TAG, "Received Byte: %i", byte);
+            ESP_LOGW(TAG, "Received Byte: %i", byte);
     
             if(byte == ACK_BYTE) {
-                ESP_LOGD(TAG, "ACK received");
+                ESP_LOGW(TAG, "ACK received");
                 return true;
             }
             else if (byte == NACK_BYTE)
@@ -475,7 +469,7 @@ bool CcFrameAPI::waitForAck(uint16_t timeoutMs)
                 return false;
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     ESP_LOGW(TAG, "Timeout waiting for ACK/NACK");
     return false;
@@ -507,16 +501,25 @@ uint8_t CcFrameAPI::calculateChecksum(uint8_t cmd, uint32_t address, uint32_t si
     return (uint8_t)(checksum & 0xFF);
 }
 
-void CcFrameAPI::checkFwVersion()
+bool CcFrameAPI::checkLastCmd()
 {
-    const uint8_t zbVerLen = 11;
-    const uint8_t cmdSysVersion[5] = {CMD_FRAME_START, 0x00, 0x21, 0x02, 0x23};
+    std::vector<uint8_t> status = cmdGetStatus();
+    if(status.empty()) {
+        ESP_LOGW(TAG, "No response from target on status request, did you disable the bootloader?");
+        return false;
+    }
 
-    uart_flush(ccUartNum);
-    uart_write_bytes(ccUartNum, (const char*)&cmdSysVersion, sizeof(cmdSysVersion));
-    uart_flush(ccUartNum);
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    uint8_t zbVersionBuffer[zbVerLen];
-    uart_read_bytes(ccUartNum, &zbVersionBuffer, zbVerLen, 50);
+    uint8_t cmdReturn = status.at(0);
+    if(cmdReturn == COMMAND_RET_SUCCESS) {
+        return true;
+    }
+    
+    char* statusString = getStatusString(cmdReturn);
+    if(strcmp(statusString, "Unknown")) { 
+        ESP_LOGW(TAG, "Unrecognized status returned: 0x%d", cmdReturn);
+    }
+    else {
+        ESP_LOGW(TAG, "Target returned: 0x%d, %s", cmdReturn, statusString);
+    }
+    return false;
 }

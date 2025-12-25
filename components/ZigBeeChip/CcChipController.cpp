@@ -12,10 +12,28 @@
 
 const char* CcChipController::TAG = "CcChipController";
 
-CcChipController::CcChipController()
+CcChipController::CcChipController(CcFrameAPI& _ccFrameAPI)
+    :ccFrameAPI(_ccFrameAPI)
 {
 }
 
 CcChipController::~CcChipController()
 {
+}
+
+void CcChipController::initCc()
+{
+    ccFrameAPI.initCcUart();
+    ccFrameAPI.initBslAndRst();
+}
+
+void CcChipController::closeCc()
+{
+}
+
+void CcChipController::testFunction()
+{
+    ESP_LOGW(TAG, "Called test function");
+    ccFrameAPI.setCcBootloaderMode();
+    ccFrameAPI.cmdCheckFwVersion();
 }
