@@ -65,12 +65,27 @@ bool CcFrameAPI::setCcBootloaderMode()
     return true;
 }
 
-bool CcFrameAPI::detectChipInfo()
+bool CcFrameAPI::getCcInfo(CcInfo& ccInfo)
 {
-    if(setCcBootloaderMode() == false) {
-        ESP_LOGW(TAG, "Error setting up bootloader mode in detectChipInfo");
+    if(inBootloaderMode == true) {
+        if(setCcBootloaderMode() == false) {
+            ESP_LOGW(TAG, "Error setting up bootloader mode in cmdCheckIeeeAddress");
+            return false;
+        }
+    }
+
+    strncpy(ccInfo.hwRevision, "CC2652P7", sizeof(ccInfo.hwRevision));
+
+    if(cmdCheckFwVersion(ccInfo) == false) {
+        ESP_LOGW(TAG, "Error in cmdCheckFwVersion called from detectChipInfo");
         return false;
     }
+
+    if(cmdCheckIeeeAddress(ccInfo) == false) {
+        ESP_LOGW(TAG, "Error in cmdCheckIeeeAddress called from detectChipInfo");
+        return false;
+    }
+
     return true;
 }
 
@@ -392,13 +407,39 @@ bool CcFrameAPI::cmdCheckFwVersion(CcInfo& chip)
     return false;
 }
 
+bool CcFrameAPI::cmdCheckIeeeAddress(CcInfo& ccInfo) {
+    if(inBootloaderMode == false) {
+        if(setCcBootloaderMode() == false) {
+            ESP_LOGW(TAG, "Error setting up bootloader mode in cmdCheckIeeeAddress");
+            return false;
+        }
+    }
+
+    std::vector<uint8_t> ieeeByteOne = cmdMemRead(IEEE_MEM_ADDRESS + 4);
+    std::vector<uint8_t> ieeeByteTwo = cmdMemRead(IEEE_MEM_ADDRESS);
+    
+    if(ieeeByteOne.empty() || ieeeByteTwo.empty()) {
+        ESP_LOGW(TAG, "Error reading IEEE MEM Addresses");
+        return false;
+    }
+
+    snprintf(ccInfo.ieee, sizeof(ccInfo.ieee), "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", 
+            ieeeByteOne[3], ieeeByteOne[2], ieeeByteOne[1], ieeeByteOne[0],
+            ieeeByteTwo[3], ieeeByteTwo[2], ieeeByteTwo[1], ieeeByteTwo[0]);
+
+    ESP_LOGW(TAG, "Read IEEE Address: %s", ccInfo.ieee);
+
+    return true;
+}
+
 std::vector<uint8_t> CcFrameAPI::receivePacket()
 {
     uint8_t header[2];
     uart_read_bytes(ccUartNum, header, 2, 100);
-    
-    if(header[0] > 2) {
-        ESP_LOGW(TAG, "Message package to short (length > 2), returning empty vector");
+    ESP_LOGW(TAG, "Received Message size give in header: %i", header[0]);
+
+    if(header[0] < 2) {
+        ESP_LOGW(TAG, "Message package to short (length < 2), returning empty vector");
         return {};
     }
     uint8_t messageSizeRemaining = (header[0] - 2);

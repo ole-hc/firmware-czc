@@ -35,6 +35,7 @@ void CcChipController::testFunction()
 {
     ESP_LOGW(TAG, "Called test function");
     ccFrameAPI.setCcBootloaderMode();
-    ccFrameAPI.cmdCheckFwVersion(ccInfo);
-    ESP_LOGW(TAG, "Fw revision of CC chip: %i", ccInfo.fwRevision);
+    // ccFrameAPI.cmdCheckFwVersion(ccInfo);
+    // ESP_LOGW(TAG, "Fw revision of CC chip: %i", ccInfo.fwRevision);
+    ccFrameAPI.getCcInfo(ccInfo);
 }

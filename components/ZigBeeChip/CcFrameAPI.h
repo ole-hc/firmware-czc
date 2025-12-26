@@ -15,6 +15,7 @@
 #define NACK_BYTE 0x33
 #define COMMAND_RET_SUCCESS 0x40
 #define CMD_FRAME_START 0xFE
+#define IEEE_MEM_ADDRESS 0x500012F0
 
 struct CcInfo {
     uint32_t fwRevision;
@@ -25,6 +26,8 @@ struct CcInfo {
     uint8_t majorrel;
     uint8_t product;
     uint8_t transportrev;
+    char hwRevision[9];
+    char ieee[65];
 };
 
 class CcFrameAPI
@@ -53,10 +56,9 @@ public:
 
     void initCcUart();
     void initBslAndRst();
-
+    bool getCcInfo(CcInfo& ccInfo);
+    
     bool setCcBootloaderMode();
-    bool detectChipInfo();
-
     void restartCc();
     void routerRejoin();
 
@@ -68,4 +70,5 @@ public:
     std::vector<uint8_t> cmdMemRead(uint32_t address);
     std::vector<uint8_t> cmdGetStatus();
     bool cmdCheckFwVersion(CcInfo& chip);
+    bool cmdCheckIeeeAddress(CcInfo& ccInfo);
 };
