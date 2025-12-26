@@ -56,12 +56,14 @@ public:
 
     void initCcUart();
     void initBslAndRst();
+
     bool getCcInfo(CcInfo& ccInfo);
-    
     bool setCcBootloaderMode();
     void restartCc();
     void routerRejoin();
 
+    bool cmdCheckFwVersion(CcInfo& chip);
+    bool cmdCheckIeeeAddress(CcInfo& ccInfo);
     bool cmdEraseFlash();
     bool cmdDownload(uint32_t address, uint32_t size);
     bool cmdSendData(std::vector<uint8_t> data);
@@ -69,6 +71,7 @@ public:
     uint32_t cmdGetChipId();
     std::vector<uint8_t> cmdMemRead(uint32_t address);
     std::vector<uint8_t> cmdGetStatus();
-    bool cmdCheckFwVersion(CcInfo& chip);
-    bool cmdCheckIeeeAddress(CcInfo& ccInfo);
+
+    int readCcUart(uint8_t* buffer, uint8_t bufferLength);
+    int writeCcUart(uint8_t* buffer, uint8_t bufferLength);
 };

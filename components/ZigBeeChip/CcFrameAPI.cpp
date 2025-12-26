@@ -563,3 +563,15 @@ bool CcFrameAPI::checkLastCmd()
     }
     return false;
 }
+
+int CcFrameAPI::readCcUart(uint8_t *buffer, uint8_t bufferLength)
+{
+    int readLength = uart_read_bytes(ccUartNum, buffer, bufferLength, 10);
+    return readLength;
+}
+
+int CcFrameAPI::writeCcUart(uint8_t *buffer, uint8_t bufferLength)
+{
+    int writtenLength = uart_write_bytes(ccUartNum, buffer, bufferLength);
+    return writtenLength;
+}
