@@ -12,6 +12,9 @@
 #include "IoAPI.h"
 #include "CcFrameAPI.h"
 #include "CcChipController.h"
+#include "OutsideInterface.h"
+#include "OutsideSocket.h"
+#include "OutsideUart.h"
 #include "NetworkStateMachine.h"
 #include "HttpServer.h"
 #include "RestAPI.h"
@@ -49,8 +52,12 @@ extern "C" void app_main(){
     TaskHandle_t updateFrontendTask = NULL; 
     xTaskCreate(restAPI.pollFrontendDataTask, "SendEventstreamDataToFrontend", 4096, &restAPI, 5, &updateFrontendTask);
 
+    OutsideUart outsideUart;
+    OutsideSocket outsideSocket;
+    OutsideInterface outsideInterface(outsideUart, outsideSocket);
+    
     CcFrameAPI ccFrameAPI;
-    CcChipController ccChipController(ccFrameAPI);
+    CcChipController ccChipController(ccFrameAPI, outsideInterface);
     ccChipController.initCc();
     ccChipController.testFunction();
 

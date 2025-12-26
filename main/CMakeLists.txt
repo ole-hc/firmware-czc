@@ -7,6 +7,7 @@ idf_component_register(
         Network
         HttpServer
         RestAPI
-        ZigBeeChip
+        ZigBeeProxy
         MqttTelemetry
+        OutsideInterfaces 
 )
