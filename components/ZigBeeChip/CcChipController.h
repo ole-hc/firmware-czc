@@ -23,6 +23,7 @@ private:
     CcFrameAPI& ccFrameAPI;
     CcMode ccMode;
     ProxyMode proxyMode;
+    uart_port_t outsideUartNum;
     CcInfo ccInfo;
 
     void initOutsideUart();

@@ -18,13 +18,35 @@
 
 const char* CcChipController::TAG = "CcChipController";
 
-CcChipController::CcChipController(CcFrameAPI& _ccFrameAPI)
-    :ccFrameAPI(_ccFrameAPI), ccMode(CcMode::CONTROL), proxyMode(ProxyMode::NETWORK), ccInfo()
+CcChipController::CcChipController(CcFrameAPI &_ccFrameAPI)
+    : ccFrameAPI(_ccFrameAPI), ccMode(CcMode::CONTROL), proxyMode(ProxyMode::NETWORK), outsideUartNum(UART_NUM_0), ccInfo()
 {
 }
 
 CcChipController::~CcChipController()
 {
+}
+
+// Uninit ESP_LOG and init uart for proxy
+void CcChipController::initOutsideUart()
+{
+}
+
+// Uninit uart for proxy and init ESP_LOG
+void CcChipController::closeOutsideUart()
+{
+}
+
+int CcChipController::readOutsideUart(uint8_t *buffer, uint8_t bufferLength)
+{
+    int readLength = uart_read_bytes(outsideUartNum, buffer, bufferLength, 10);
+    return readLength;
+}
+
+int CcChipController::writeOutsideUart(uint8_t *buffer, uint8_t bufferLength)
+{
+    int writtenLength = uart_write_bytes(outsideUartNum, buffer, bufferLength);
+    return writtenLength;
 }
 
 void CcChipController::initCc()
