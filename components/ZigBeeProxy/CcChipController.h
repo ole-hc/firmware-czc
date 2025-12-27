@@ -31,6 +31,5 @@ public:
     void testFunction();
     static void ccToOutsideTask(void* pvParameters);
     static void outsideToCcTask(void* pvParameters);
-    void setProxyMode(ProxyMode _proxyMode);
     void setCcMode(CcMode _ccMode);
 };
